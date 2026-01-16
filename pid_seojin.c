@@ -1,5 +1,5 @@
 #include "main.h"
-//깃허브 테스트 중
+
 PID_Manager_typedef pid;
 
 // =========================================================
@@ -9,7 +9,7 @@ PID_Manager_typedef pid;
 // - 값을 키우면: 목표 도달 빠름, 오버슈트 위험 증가
 // - 값을 줄이면: 목표 근처에서 천천히 진입 (Soft Landing)
 // * 추천: 오버슈트가 절대 안 되므로 약간 작게 시작 (1.0 ~ 2.0)
-#define MFSMC_LAMBDA  1.5f   
+#define MFSMC_LAMBDA  150.0f   
 
 // ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
@@ -19,11 +19,11 @@ PID_Manager_typedef pid;
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
 // - 반응성을 결정. 너무 크면 채터링(떨림) 발생.
-#define MFSMC_GAIN    5.0f
+#define MFSMC_GAIN    1.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 // 70.0f로 설정하면 제어기가 아무리 출력을 높이려 해도 70%에서 잘립니다.
-#define MAX_PWM_LIMIT  70.0f
+#define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
 
