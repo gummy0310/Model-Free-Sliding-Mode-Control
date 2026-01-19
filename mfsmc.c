@@ -52,7 +52,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // 상황에 따라 Lambda 선택
+    // [설정 1] 상황에 따라 Lambda 선택
     // error > 0 (가열 필요): MFSMC_LAMBDA_HEAT 사용
     // error <= 0 (냉각/오버슈트): MFSMC_LAMBDA_COOL 사용 -> 하강 속도에 둔감해짐
     float lambda = (error > 0) ? MFSMC_LAMBDA_HEAT : MFSMC_LAMBDA_COOL;
@@ -65,7 +65,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     filtered_error_dot[channel] = 0.7f * filtered_error_dot[channel] + 0.3f * raw_error_dot;
     float error_dot = filtered_error_dot[channel];
 
-    // Time Delay Estimation (F_hat 추정)
+    // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
     // 식: dot(e) = F - alpha * u
     // 이항하면: F = dot(e) + alpha * u
     float u_old = pid_param->error_sum;
@@ -74,8 +74,24 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 슬라이딩 표면 (s) 계산
     float s = error + (lambda * error_dot);
 
+    //=========================================================
+    // [설정 2] 과열(Overshoot) 대응 로직 추가
+    float applied_F_hat = F_hat;
+    float applied_alpha = alpha;
+
+    if (error < 0) { 
+        // 목표 온도를 넘었을 때:
+        
+        // 1. 관성 제거: "현재 상태 유지"를 위한 F_hat을 0으로 무시
+        applied_F_hat = 0.0f; 
+
+        // 2. 출력 감쇄: alpha를 가상으로 키워서(5배) 계산되는 Output을 1/5로 줄임.
+        //    (혹시 노이즈로 s가 튀어도 PWM이 급발진하지 않도록 안전장치)
+        applied_alpha = alpha * 5.0f; 
+    }
+
     // MFSMC 제어 입력 계산
-    float output = (1.0f / alpha) * ( F_hat + (K_gain * s) );
+    float output = (1.0f / applied_alpha) * ( applied_F_hat + (K_gain * s) );
 
     // 데이터 갱신
     pid_param->last_error = error;
