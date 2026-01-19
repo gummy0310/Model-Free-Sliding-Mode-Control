@@ -8,18 +8,18 @@ PID_Manager_typedef pid;
 // LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
 // 가열용/냉각용으로 분리
 // 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   30.0f  
+#define MFSMC_LAMBDA_HEAT   30.0f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
-#define MFSMC_LAMBDA_COOL    0.5f
+#define MFSMC_LAMBDA_COOL    0.0f
 
 // ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
 // - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
 // - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
-#define MFSMC_ALPHA 0.5f
+#define MFSMC_ALPHA 0.3f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  1.0f
+#define MFSMC_GAIN  0.3f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
@@ -43,7 +43,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     uint32_t current_time = HAL_GetTick();
     if (last_call_time[channel] == 0) {
         last_call_time[channel] = current_time;
-        return 0.0f; 
+        return 0.0f;
     }
     float dt = (current_time - last_call_time[channel]) / 1000.0f; //ms 단위를 s로 변환
     last_call_time[channel] = current_time;
@@ -56,20 +56,20 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // error > 0 (가열 필요): MFSMC_LAMBDA_HEAT 사용
     // error <= 0 (냉각/오버슈트): MFSMC_LAMBDA_COOL 사용 -> 하강 속도에 둔감해짐
     float lambda = (error > 0) ? MFSMC_LAMBDA_HEAT : MFSMC_LAMBDA_COOL;
-    float alpha  = MFSMC_ALPHA; 
+    float alpha  = MFSMC_ALPHA;
     float K_gain = MFSMC_GAIN;
 
     // 오차 변화율 (Error Dot) + LPF
     float raw_error_dot = (error - pid_param->last_error) / dt;
-    static float filtered_error_dot[CTRL_CH] = {0}; 
-    filtered_error_dot[channel] = 0.9f * filtered_error_dot[channel] + 0.1f * raw_error_dot;
+    static float filtered_error_dot[CTRL_CH] = {0};
+    filtered_error_dot[channel] = 0.7f * filtered_error_dot[channel] + 0.3f * raw_error_dot;
     float error_dot = filtered_error_dot[channel];
 
     // Time Delay Estimation (F_hat 추정)
     // 식: dot(e) = F - alpha * u
     // 이항하면: F = dot(e) + alpha * u
-    float u_old = pid_param->error_sum; 
-    float F_hat = error_dot + (alpha * u_old); 
+    float u_old = pid_param->error_sum;
+    float F_hat = error_dot + (alpha * u_old);
 
     // 슬라이딩 표면 (s) 계산
     float s = error + (lambda * error_dot);
@@ -79,7 +79,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
 
     // 데이터 갱신
     pid_param->last_error = error;
-    
+
     // 출력 제한 및 저장
     if (output > pid_param->output_max) output = pid_param->output_max;
     if (output < 0.0f) output = 0.0f;
