@@ -238,9 +238,9 @@ bool Apply_Feedforward_Control(uint8_t channel, float current_temp, float target
 void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
-        pid.params[i].kp = ZONE1_KP;
-        pid.params[i].ki = ZONE1_KI;
-        pid.params[i].kd = ZONE1_KD;
+        pid.params[i].kp = MFSMC_LAMBDA;
+        pid.params[i].ki = MFSMC_ALPHA;
+        pid.params[i].kd = MFSMC_GAIN;
         pid.params[i].setpoint = 50.0f;
         pid.params[i].error_sum = 0.0f;
         pid.params[i].last_error = 0.0f;
