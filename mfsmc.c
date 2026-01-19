@@ -8,18 +8,17 @@ PID_Manager_typedef pid;
 // LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
 // - 값을 키우면: 목표 도달 빠름, 오버슈트 위험 증가
 // - 값을 줄이면: 목표 근처에서 천천히 진입 (Soft Landing)
-// * 추천: 오버슈트가 절대 안 되므로 약간 작게 시작 (1.0 ~ 2.0)
-#define MFSMC_LAMBDA  150.0f   
+#define MFSMC_LAMBDA    2.0f
 
 // ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
 // - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
 // - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
-#define MFSMC_ALPHA   0.2f   
+#define MFSMC_ALPHA 0.5f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
 // - 반응성을 결정. 너무 크면 채터링(떨림) 발생.
-#define MFSMC_GAIN    1.0f
+#define MFSMC_GAIN  1.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 // 70.0f로 설정하면 제어기가 아무리 출력을 높이려 해도 70%에서 잘립니다.
@@ -36,7 +35,7 @@ void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, 
     pid_param->kd = MFSMC_GAIN;
 }
 
-// MFSMC 알고리즘 구현
+// MFSMC 알고리즘 구현... 이름만 PID 형식 유지
 float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
     // 시간차 (dt)
@@ -50,36 +49,36 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     last_call_time[channel] = current_time;
     if (dt <= 0.0f || dt > 1.0f) dt = 0.1f;
 
-    // 1. 파라미터 로드
+    // 파라미터 로드
     float lambda = MFSMC_LAMBDA; 
     float alpha  = MFSMC_ALPHA; 
     float K_gain = MFSMC_GAIN;
 
-    // 2. 오차 계산 (Target - Current)
+    // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // 3. 오차 변화율 (Error Dot) + LPF
+    // 오차 변화율 (Error Dot) + LPF
     float raw_error_dot = (error - pid_param->last_error) / dt;
     static float filtered_error_dot[CTRL_CH] = {0}; 
     filtered_error_dot[channel] = 0.9f * filtered_error_dot[channel] + 0.1f * raw_error_dot;
     float error_dot = filtered_error_dot[channel];
 
-    // 4. Time Delay Estimation (F_hat 추정)
+    // Time Delay Estimation (F_hat 추정)
     // 식: dot(e) = F - alpha * u
     // 이항하면: F = dot(e) + alpha * u
     float u_old = pid_param->error_sum; 
     float F_hat = error_dot + (alpha * u_old); 
 
-    // 5. 슬라이딩 표면 (s) 계산
+    // 슬라이딩 표면 (s) 계산
     float s = error + (lambda * error_dot);
 
-    // 6. MFSMC 제어 입력 계산
+    // MFSMC 제어 입력 계산
     float output = (1.0f / alpha) * ( F_hat + (K_gain * s) );
 
-    // 7. 데이터 갱신
+    // 데이터 갱신
     pid_param->last_error = error;
     
-    // 8. 출력 제한 및 저장
+    // 출력 제한 및 저장
     if (output > pid_param->output_max) output = pid_param->output_max;
     if (output < 0.0f) output = 0.0f;
 
