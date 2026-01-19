@@ -61,7 +61,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 3. 오차 변화율 (Error Dot) + LPF
     float raw_error_dot = (error - pid_param->last_error) / dt;
     static float filtered_error_dot[CTRL_CH] = {0}; 
-    filtered_error_dot[channel] = 0.7f * filtered_error_dot[channel] + 0.3f * raw_error_dot;
+    filtered_error_dot[channel] = 0.9f * filtered_error_dot[channel] + 0.1f * raw_error_dot;
     float error_dot = filtered_error_dot[channel];
 
     // 4. Time Delay Estimation (F_hat 추정)
