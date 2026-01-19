@@ -6,9 +6,11 @@ PID_Manager_typedef pid;
 // MFSMC 파라미터 설정
 // =========================================================
 // LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
-// - 값을 키우면: 목표 도달 빠름, 오버슈트 위험 증가
-// - 값을 줄이면: 목표 근처에서 천천히 진입 (Soft Landing)
-#define MFSMC_LAMBDA    2.0f
+// 가열용/냉각용으로 분리
+// 1. 가열 시 (Target > Current):
+#define MFSMC_LAMBDA_HEAT   30.0f  
+// 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
+#define MFSMC_LAMBDA_COOL    0.5f
 
 // ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
@@ -17,11 +19,9 @@ PID_Manager_typedef pid;
 #define MFSMC_ALPHA 0.5f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-// - 반응성을 결정. 너무 크면 채터링(떨림) 발생.
 #define MFSMC_GAIN  1.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
-// 70.0f로 설정하면 제어기가 아무리 출력을 높이려 해도 70%에서 잘립니다.
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
@@ -29,8 +29,8 @@ PID_Manager_typedef pid;
 // 더 이상 구간별 업데이트 함수는 필요 없음
 void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
-    // MFSMC는 전 구간 자동 적응하므로 고정값 사용
-    pid_param->kp = MFSMC_LAMBDA;
+    // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
+    pid_param->kp = MFSMC_LAMBDA_HEAT;
     pid_param->ki = MFSMC_ALPHA;
     pid_param->kd = MFSMC_GAIN;
 }
@@ -49,13 +49,15 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     last_call_time[channel] = current_time;
     if (dt <= 0.0f || dt > 1.0f) dt = 0.1f;
 
-    // 파라미터 로드
-    float lambda = MFSMC_LAMBDA; 
-    float alpha  = MFSMC_ALPHA; 
-    float K_gain = MFSMC_GAIN;
-
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
+
+    // 상황에 따라 Lambda 선택
+    // error > 0 (가열 필요): MFSMC_LAMBDA_HEAT 사용
+    // error <= 0 (냉각/오버슈트): MFSMC_LAMBDA_COOL 사용 -> 하강 속도에 둔감해짐
+    float lambda = (error > 0) ? MFSMC_LAMBDA_HEAT : MFSMC_LAMBDA_COOL;
+    float alpha  = MFSMC_ALPHA; 
+    float K_gain = MFSMC_GAIN;
 
     // 오차 변화율 (Error Dot) + LPF
     float raw_error_dot = (error - pid_param->last_error) / dt;
@@ -237,7 +239,7 @@ bool Apply_Feedforward_Control(uint8_t channel, float current_temp, float target
 void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
-        pid.params[i].kp = MFSMC_LAMBDA;
+        pid.params[i].kp = MFSMC_LAMBDA_HEAT;
         pid.params[i].ki = MFSMC_ALPHA;
         pid.params[i].kd = MFSMC_GAIN;
         pid.params[i].setpoint = 50.0f;
