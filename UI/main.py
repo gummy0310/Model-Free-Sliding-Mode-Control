@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         # 제어 상태 변수 (Apply를 눌러야 갱신됨)
         self.current_pwm = 0
         self.current_fan = False
-        self.current_pid_mode = False
+        self.current_smc_mode = False
         self.current_target = 0.0
         
         # CSV 및 로그 이름 관련 변수
@@ -131,18 +131,18 @@ class MainWindow(QMainWindow):
 
         # 모드 선택
         self.radio_manual = QRadioButton("Manual Mode")
-        self.radio_pid = QRadioButton("PID Mode")
+        self.radio_smc = QRadioButton("SMC Mode")
         self.radio_manual.setChecked(True)
         
         self.btn_group = QButtonGroup()
         self.btn_group.addButton(self.radio_manual)
-        self.btn_group.addButton(self.radio_pid)
+        self.btn_group.addButton(self.radio_smc)
         
         self.radio_manual.toggled.connect(self.on_mode_changed)
-        self.radio_pid.toggled.connect(self.on_mode_changed)
+        self.radio_smc.toggled.connect(self.on_mode_changed)
 
         layout_control.addWidget(self.radio_manual)
-        layout_control.addWidget(self.radio_pid)
+        layout_control.addWidget(self.radio_smc)
 
         # 수동 제어 UI
         self.widget_manual = QWidget()
@@ -156,25 +156,25 @@ class MainWindow(QMainWindow):
         lay_man.addWidget(self.chk_fan)
         self.widget_manual.setLayout(lay_man)
         
-        # PID 제어 UI
-        self.widget_pid = QWidget()
-        lay_pid = QHBoxLayout()
-        lay_pid.addWidget(QLabel("Target Temp:"))
+        # SMC 제어 UI
+        self.widget_smc = QWidget() 
+        lay_smc = QHBoxLayout()
+        lay_smc.addWidget(QLabel("Target Temp:"))
         self.spin_target = QDoubleSpinBox()
         self.spin_target.setRange(0.0, 100.0)
         self.spin_target.setValue(25.0)
         self.spin_target.setSingleStep(0.5)
-        lay_pid.addWidget(self.spin_target)
-        self.widget_pid.setLayout(lay_pid)
-        self.widget_pid.setVisible(False)
+        lay_smc.addWidget(self.spin_target)
+        self.widget_smc.setLayout(lay_smc)
+        self.widget_smc.setVisible(False)
 
         layout_control.addWidget(self.widget_manual)
-        layout_control.addWidget(self.widget_pid)
+        layout_control.addWidget(self.widget_smc)
         
         # 구분선
         layout_control.addStretch()
 
-        # [추가] Apply Settings 버튼
+        # Apply Settings 버튼
         self.btn_apply = QPushButton("Apply Settings")
         self.btn_apply.setMinimumHeight(40)
         self.btn_apply.setStyleSheet("font-weight: bold; font-size: 14px;")
@@ -182,7 +182,7 @@ class MainWindow(QMainWindow):
         self.btn_apply.setEnabled(False) # Start 전에는 비활성화
         layout_control.addWidget(self.btn_apply)
 
-        # [추가] Start 버튼
+        # Start 버튼
         self.btn_start = QPushButton("START SYSTEM")
         self.btn_start.setMinimumHeight(50)
         self.btn_start.setStyleSheet("""
@@ -220,7 +220,7 @@ class MainWindow(QMainWindow):
         grp_control.setLayout(layout_control)
         control_panel.addWidget(grp_control)
 
-    # [추가] 시스템 시작 함수
+    # 시스템 시작 함수
     def start_system(self):
         # 1. UI 상태 변경
         self.btn_start.setEnabled(False)
@@ -241,18 +241,18 @@ class MainWindow(QMainWindow):
         
         print("System Started.")
 
-    # [추가] 설정 적용 함수 (Apply 버튼)
+    # 설정 적용 함수 (Apply 버튼)
     def apply_settings(self):
         # UI에 입력된 값을 내부 변수에 저장
         if self.radio_manual.isChecked():
             self.current_pwm = self.spin_pwm.value()
             self.current_fan = self.chk_fan.isChecked()
-            self.current_pid_mode = False
+            self.current_smc_mode = False
             print(f"Applied: Manual Mode, PWM={self.current_pwm}, FAN={self.current_fan}")
         else:
             self.current_target = self.spin_target.value()
-            self.current_pid_mode = True
-            print(f"Applied: PID Mode, Target={self.current_target}")
+            self.current_smc_mode = True
+            print(f"Applied: SMC Mode, Target={self.current_target}")
 
     def stop_all(self):
         self.worker.running = False
@@ -270,7 +270,7 @@ class MainWindow(QMainWindow):
         
         self.current_pwm = 0
         self.current_fan = False
-        self.current_pid_mode = False
+        self.current_smc_mode = False
         self.current_target = 0.0
 
         self.send_heartbeat() # 마지막으로 0 전송
@@ -308,7 +308,7 @@ class MainWindow(QMainWindow):
         self.temp_data.append(temp)
         self.pwm_data.append(pwm)
         
-        if self.current_pid_mode:
+        if self.current_smc_mode:
             self.target_data.append(self.current_target)
         else:
             self.target_data.append(float('nan'))
@@ -350,16 +350,16 @@ class MainWindow(QMainWindow):
         print(f"Error: {msg}")
 
     def on_mode_changed(self):
-        is_pid = self.radio_pid.isChecked()
-        self.widget_pid.setVisible(is_pid)
-        self.widget_manual.setVisible(not is_pid)
+        is_smc = self.radio_smc.isChecked()
+        self.widget_smc.setVisible(is_smc)
+        self.widget_manual.setVisible(not is_smc)
         # 모드를 바꿔도 바로 적용하지 않음 (Apply 눌러야 함)
 
     def send_heartbeat(self):
         self.worker.send_control_message(
             pwm=self.current_pwm,
             fan_on=self.current_fan,
-            pid_enable=self.current_pid_mode,
+            pid_enable=self.current_smc_mode, # 인자는 유지하되 값은 smc_mode 사용
             target_temp=self.current_target
         )
 
