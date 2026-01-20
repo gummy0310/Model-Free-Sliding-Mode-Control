@@ -16,7 +16,8 @@ PID_Manager_typedef pid;
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
 // - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
 // - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
-#define MFSMC_ALPHA 0.3f
+#define MFSMC_ALPHA_HEAT    0.3f
+#define MFSMC_ALPHA_COOL    3.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
 #define MFSMC_GAIN  0.3f
@@ -31,7 +32,7 @@ void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, 
 {
     // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
     pid_param->kp = MFSMC_LAMBDA_HEAT;
-    pid_param->ki = MFSMC_ALPHA;
+    pid_param->ki = MFSMC_ALPHA_HEAT;
     pid_param->kd = MFSMC_GAIN;
 }
 
@@ -52,11 +53,17 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // [설정 1] 상황에 따라 Lambda 선택
-    // error > 0 (가열 필요): MFSMC_LAMBDA_HEAT 사용
-    // error <= 0 (냉각/오버슈트): MFSMC_LAMBDA_COOL 사용 -> 하강 속도에 둔감해짐
-    float lambda = (error > 0) ? MFSMC_LAMBDA_HEAT : MFSMC_LAMBDA_COOL;
-    float alpha  = MFSMC_ALPHA;
+    // 상태에 따른 파라미터 Scheduling
+    float lambda, alpha;
+    if (error > 0) {
+        // [가열모드]
+        lambda = MFSMC_LAMBDA_HEAT;
+        alpha = MFSMC_ALPHA_HEAT;
+    } else {
+        // [냉각/오버슈트 모드]
+        lambda = MFSMC_LAMBDA_COOL;
+        alpha = MFSMC_ALPHA_COOL;
+    }
     float K_gain = MFSMC_GAIN;
 
     // 오차 변화율 (Error Dot) + LPF
@@ -74,24 +81,8 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 슬라이딩 표면 (s) 계산
     float s = error + (lambda * error_dot);
 
-    //=========================================================
-    // [설정 2] 과열(Overshoot) 대응 로직 추가
-    float applied_F_hat = F_hat;
-    float applied_alpha = alpha;
-
-    if (error < 0) { 
-        // 목표 온도를 넘었을 때:
-        
-        // 1. 관성 제거: "현재 상태 유지"를 위한 F_hat을 0으로 무시
-        applied_F_hat = 0.0f; 
-
-        // 2. 출력 감쇄: alpha를 가상으로 키워서(5배) 계산되는 Output을 1/5로 줄임.
-        //    (혹시 노이즈로 s가 튀어도 PWM이 급발진하지 않도록 안전장치)
-        applied_alpha = alpha * 5.0f; 
-    }
-
     // MFSMC 제어 입력 계산
-    float output = (1.0f / applied_alpha) * ( applied_F_hat + (K_gain * s) );
+    float output = (1.0f / alpha) * ( F_hat + (K_gain * s) );
 
     // 데이터 갱신
     pid_param->last_error = error;
