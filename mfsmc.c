@@ -20,10 +20,10 @@ PID_Manager_typedef pid;
 #define MFSMC_ALPHA_COOL    2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  0.1f
+#define MFSMC_GAIN  0.3f
 
 // PHI: Boundaru Layer Thickness
-#define MFSMC_PHI   5.0f
+#define MFSMC_PHI   1.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
@@ -86,7 +86,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
 
     // [Saturation 로직]
     // s/phi 값을 구해서 -1 ~ 1 사이로 제한
-    float ph = MFSMC_PHI;
+    float phi = MFSMC_PHI;
     float sat_val;
     float ratio = s / phi;
     if (ratio > 1.0f) sat_val = 1.0f;
