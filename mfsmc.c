@@ -81,8 +81,15 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 슬라이딩 표면 (s) 계산
     float s = error + (lambda * error_dot);
 
+    // [Saturation 적용]
+    float phi = 5.0f; // 경계층 두께
+    float s_sat;
+    if (s > phi) s_sat = phi;
+    else if (s < -phi) s_sat = -phi;
+    else s_sat = s;
+
     // MFSMC 제어 입력 계산
-    float output = (1.0f / alpha) * ( F_hat + (K_gain * s) );
+    float output = (1.0f / alpha) * ( F_hat + (K_gain * s_sat) );
 
     // 데이터 갱신
     pid_param->last_error = error;
