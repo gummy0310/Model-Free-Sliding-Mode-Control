@@ -22,6 +22,9 @@ PID_Manager_typedef pid;
 // GAIN (구 kd): 외란 제거 및 추종 강도
 #define MFSMC_GAIN  0.1f
 
+// PHI: Boundaru Layer Thickness
+#define MFSMC_PHI   5.0f
+
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
@@ -81,15 +84,17 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 슬라이딩 표면 (s) 계산
     float s = error + (lambda * error_dot);
 
-    // [Saturation 적용]
-    float phi = 5.0f; // 경계층 두께
-    float s_sat;
-    if (s > phi) s_sat = phi;
-    else if (s < phi) s_sat = -phi;
-    else s_sat = s;
+    // [Saturation 로직]
+    // s/phi 값을 구해서 -1 ~ 1 사이로 제한
+    float ph = MFSMC_PHI;
+    float sat_val;
+    float ratio = s / phi;
+    if (ratio > 1.0f) sat_val = 1.0f;
+    else if (ratio < -1.0f) sat_val = -1.0f;
+    else sat_val = ratio;
 
     // MFSMC 제어 입력 계산
-    float output = (1.0f / alpha) * ( F_hat + (K_gain * s_sat) );
+    float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
 
     // 데이터 갱신
     pid_param->last_error = error;
