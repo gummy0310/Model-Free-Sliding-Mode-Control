@@ -17,10 +17,10 @@ PID_Manager_typedef pid;
 // - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
 // - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
 #define MFSMC_ALPHA_HEAT    0.3f
-#define MFSMC_ALPHA_COOL    3.0f
+#define MFSMC_ALPHA_COOL    2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  0.3f
+#define MFSMC_GAIN  0.1f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
@@ -85,7 +85,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     float phi = 5.0f; // 경계층 두께
     float s_sat;
     if (s > phi) s_sat = phi;
-    else if (s < -phi) s_sat = -phi;
+    else if (s < phi) s_sat = -phi;
     else s_sat = s;
 
     // MFSMC 제어 입력 계산
@@ -254,7 +254,7 @@ void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
         pid.params[i].kp = MFSMC_LAMBDA_HEAT;
-        pid.params[i].ki = MFSMC_ALPHA;
+        pid.params[i].ki = MFSMC_ALPHA_HEAT;
         pid.params[i].kd = MFSMC_GAIN;
         pid.params[i].setpoint = 50.0f;
         pid.params[i].error_sum = 0.0f;
