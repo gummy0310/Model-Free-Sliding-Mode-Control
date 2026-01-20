@@ -8,7 +8,7 @@ PID_Manager_typedef pid;
 // LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
 // 가열용/냉각용으로 분리
 // 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   30.0f
+#define MFSMC_LAMBDA_HEAT   5.0f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
 #define MFSMC_LAMBDA_COOL    0.0f
 
@@ -16,11 +16,11 @@ PID_Manager_typedef pid;
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
 // - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
 // - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
-#define MFSMC_ALPHA_HEAT    0.3f
+#define MFSMC_ALPHA_HEAT    2.0f
 #define MFSMC_ALPHA_COOL    2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  0.3f
+#define MFSMC_GAIN  1.0f
 
 // PHI: Boundaru Layer Thickness
 #define MFSMC_PHI   1.0f
