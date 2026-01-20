@@ -56,24 +56,23 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // 상태에 따른 파라미터 Scheduling
-    float lambda, alpha;
-    if (error > 0) {
-        // [가열모드]
-        lambda = MFSMC_LAMBDA_HEAT;
-        alpha = MFSMC_ALPHA_HEAT;
-    } else {
-        // [냉각/오버슈트 모드]
-        lambda = MFSMC_LAMBDA_COOL;
-        alpha = MFSMC_ALPHA_COOL;
-    }
-    float K_gain = MFSMC_GAIN;
-
     // 오차 변화율 (Error Dot) + LPF
     float raw_error_dot = (error - pid_param->last_error) / dt;
     static float filtered_error_dot[CTRL_CH] = {0};
     filtered_error_dot[channel] = 0.7f * filtered_error_dot[channel] + 0.3f * raw_error_dot;
     float error_dot = filtered_error_dot[channel];
+
+    // 상태에 따른 gain scheduling
+    if (error_dot <0) {
+        //[case1: 온도가 상승중일때]
+        lambda = MFSMC_LAMBDA_HEAT;
+        alpha = MFSMC_ALPHA_HEAT;
+    }
+    else {
+        //[case2: 온도가 하강중일때]
+        lambda = MFSMC_LAMBDA_COOL;
+        alpha = MFSMC_ALPHA_COOL;
+    }
 
     // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
     // 식: dot(e) = F - alpha * u
