@@ -1,4 +1,8 @@
-온도가 목표온도 이상일 때 과도한 재가열로 지속적으로 온도가 상승하는 문제는 완전히 해결됨
-그런데 온도가 목표온도보다 아주 약간 떨어지자마자 output 치솟는 현상 발생 -> 원인 찾아야 함
-
-around target tmperature, gain changes in too big gap.
+lambda heat = 1.5f
+lambda cool = 0.0f
+alpha = 2.0f
+K gain = 2.0f
+phi = 15.0f
+max pwm limit = 100%
+초반 목표온도 도달 시간이 약간 느린 느낌 남아있음
+charttering 생각보다 심하지 않고 지난번에 비해 robustness 강화
