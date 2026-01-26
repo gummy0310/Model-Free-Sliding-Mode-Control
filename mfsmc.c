@@ -34,7 +34,7 @@ void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, 
 {
     // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
     pid_param->kp = MFSMC_LAMBDA_HEAT;
-    pid_param->ki = MFSMC_ALPHA_HEAT;
+    pid_param->ki = MFSMC_ALPHA;
     pid_param->kd = MFSMC_GAIN;
 }
 
