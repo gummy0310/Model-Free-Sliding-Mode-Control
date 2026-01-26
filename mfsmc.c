@@ -21,7 +21,7 @@ PID_Manager_typedef pid;
 // GAIN (구 kd): 외란 제거 및 추종 강도
 #define MFSMC_GAIN  1.0f
 
-// PHI: Boundaru Layer Thickness
+// PHI: Boundary Layer Thickness
 #define MFSMC_PHI   2.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
@@ -62,10 +62,11 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     float lambda;
     float alpha = MFSMC_ALPHA;
     float K_gain = MFSMC_GAIN;
-    if (error < 0 && error_dot > 0) {
-        //[case1: 온도가 목표온도 이상이고, 목표온도로 감소중일때]
+    if (error_dot > 0) {
+        // [온도 하강 중]
         lambda = MFSMC_LAMBDA_COOL;
     } else {
+        // [온도 상승 중]
         lambda = MFSMC_LAMBDA_HEAT;
     }
 
