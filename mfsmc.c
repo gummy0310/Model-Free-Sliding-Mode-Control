@@ -55,15 +55,19 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
+    // 오차 변화율 (Error Dot) + LPF
+    float error_dot = (error - pid_param->last_error) / dt;
+
     // 상태에 따른 gain scheduling
+    float lambda;
+    float alpha = MFSMC_ALPHA;
+    float K_gain = MFSMC_GAIN;
     if (error < 0 && error_dot > 0) {
         //[case1: 온도가 목표온도 이상이고, 목표온도로 감소중일때]
         lambda = MFSMC_LAMBDA_COOL;
     } else {
         lambda = MFSMC_LAMBDA_HEAT;
     }
-
-    alpha = MFSMC_ALPHA
 
     // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
     // 식: dot(e) = F - alpha * u
