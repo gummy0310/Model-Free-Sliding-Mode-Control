@@ -1,4 +1,4 @@
-// Experiment 1
+// Experiment 2 : error_sum 연산로직 수정
 #include "main.h"
 
 PID_Manager_typedef pid;
@@ -11,7 +11,7 @@ PID_Manager_typedef pid;
 // 1. 가열 시 (Target > Current):
 #define MFSMC_LAMBDA_HEAT   1.5f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
-#define MFSMC_LAMBDA_COOL    0.0f
+#define MFSMC_LAMBDA_COOL    0.1f
 
 // ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
@@ -98,6 +98,15 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 출력 제한 및 저장
     if (output > pid_param->output_max) output = pid_param->output_max;
     if (output < 0.0f) output = 0.0f;
+
+    // [Anti-Windup for MFSMC]
+    // 목표온도를 초과했다면, PWM이 출력되었더라도 다음 루프 계산에서는 이전 출력 0이었다고 가정하게 만듦
+    // F_hat 값이 빠르게 줄어들어 PWM이 즉시 꺼지는 효과
+    if (current_temp > pid_param->setpoint) {
+        pid_param->error_sum = 0.0f //초기화
+    } else {
+        pid_param->error_sum = output;
+    }
 
     pid_param->error_sum = output;
 
