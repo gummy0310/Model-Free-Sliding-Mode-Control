@@ -22,7 +22,7 @@ PID_Manager_typedef pid;
 #define MFSMC_GAIN  1.0f
 
 // PHI: Boundaru Layer Thickness
-#define MFSMC_PHI   1.0f
+#define MFSMC_PHI   2.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
@@ -54,12 +54,6 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
 
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
-
-    // 오차 변화율 (Error Dot) + LPF
-    float raw_error_dot = (error - pid_param->last_error) / dt;
-    static float filtered_error_dot[CTRL_CH] = {0};
-    filtered_error_dot[channel] = 0.7f * filtered_error_dot[channel] + 0.3f * raw_error_dot;
-    float error_dot = filtered_error_dot[channel];
 
     // 상태에 따른 gain scheduling
     if (error < 0 && error_dot > 0) {
@@ -255,7 +249,7 @@ void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
         pid.params[i].kp = MFSMC_LAMBDA_HEAT;
-        pid.params[i].ki = MFSMC_ALPHA_HEAT;
+        pid.params[i].ki = MFSMC_ALPHA;
         pid.params[i].kd = MFSMC_GAIN;
         pid.params[i].setpoint = 50.0f;
         pid.params[i].error_sum = 0.0f;
