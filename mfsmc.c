@@ -8,7 +8,7 @@ PID_Manager_typedef pid;
 // LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
 // 가열용/냉각용으로 분리
 // 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   5.0f
+#define MFSMC_LAMBDA_HEAT   1.5f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
 #define MFSMC_LAMBDA_COOL    0.0f
 
@@ -19,10 +19,10 @@ PID_Manager_typedef pid;
 #define MFSMC_ALPHA   2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  1.0f
+#define MFSMC_GAIN  2.0f
 
 // PHI: Boundary Layer Thickness
-#define MFSMC_PHI   2.0f
+#define MFSMC_PHI   10.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
@@ -55,7 +55,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // 오차 변화율 (Error Dot) + LPF
+    // 오차 변화율 (Error Dot)
     float error_dot = (error - pid_param->last_error) / dt;
 
     // 상태에 따른 gain scheduling
