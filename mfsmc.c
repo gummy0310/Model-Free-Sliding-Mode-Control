@@ -16,8 +16,7 @@ PID_Manager_typedef pid;
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
 // - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
 // - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
-#define MFSMC_ALPHA_HEAT    2.0f
-#define MFSMC_ALPHA_COOL    2.0f
+#define MFSMC_ALPHA   2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
 #define MFSMC_GAIN  1.0f
@@ -63,16 +62,14 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     float error_dot = filtered_error_dot[channel];
 
     // 상태에 따른 gain scheduling
-    if (error_dot <0) {
-        //[case1: 온도가 상승중일때]
-        lambda = MFSMC_LAMBDA_HEAT;
-        alpha = MFSMC_ALPHA_HEAT;
-    }
-    else {
-        //[case2: 온도가 하강중일때]
+    if (error < 0 && error_dot <0) {
+        //[case1: 온도가 목표온도 이상이고, 목표온도로 감소중일때]
         lambda = MFSMC_LAMBDA_COOL;
-        alpha = MFSMC_ALPHA_COOL;
+    } else {
+        lambda = MFSMC_LAMBDA_HEAT;
     }
+    
+    alpha = MFSMC_ALPHA
 
     // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
     // 식: dot(e) = F - alpha * u
