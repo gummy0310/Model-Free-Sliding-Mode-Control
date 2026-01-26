@@ -22,7 +22,7 @@ PID_Manager_typedef pid;
 #define MFSMC_GAIN  2.0f
 
 // PHI: Boundary Layer Thickness
-#define MFSMC_PHI   10.0f
+#define MFSMC_PHI   15.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
