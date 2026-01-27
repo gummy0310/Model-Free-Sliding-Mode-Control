@@ -1,5 +1,4 @@
-// [Experiment 1]
-// 외란 발생 시 error_dot의 급격한 변화가 F_hat 계싼식을 통해 출력 폭주를 유발 -> LPF 도입 시도
+// Experiment 1 + 냉각필요시 gain 4배 증폭
 #include "main.h"
 
 PID_Manager_typedef pid;
@@ -43,14 +42,11 @@ void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, 
 // MFSMC 알고리즘 구현... 이름만 PID 형식 유지
 float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
-    static float last_filtered_dot[CTRL_CH] = {0};
     // 시간차 (dt)
     static uint32_t last_call_time[CTRL_CH] = {0};
     uint32_t current_time = HAL_GetTick();
     if (last_call_time[channel] == 0) {
         last_call_time[channel] = current_time;
-        // 초기화 시 필터값도 0으로 리셋
-        last_filtered_dot[channel] = 0.0f;
         return 0.0f;
     }
     float dt = (current_time - last_call_time[channel]) / 1000.0f; //ms 단위를 s로 변환
@@ -60,23 +56,21 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // 오차 변화율 (Error Dot) + LPF
-    float raw_dot = (error - pid_param->last_error) / dt;
-    float filter_factor = 0.2f; // 부드러워짐
-    float filtered_dot = (raw_dot * filter_factor) + (last_filtered_dot[channel] * (1.0f - filter_factor));
-    last_filtered_dot[channel] = filtered_dot;
-    float error_dot = filtered_dot;
-
+    // 오차 변화율 (Error Dot)
+    float error_dot = (error - pid_param->last_error) / dt;
 
     // 상태에 따른 gain scheduling
     float lambda;
     float alpha = MFSMC_ALPHA;
     float K_gain = MFSMC_GAIN;
-    if (error_dot > 0) {
-        // [온도 하강 중]
+    if (error < 0) {
+        // [냉각 필요 구간]
+        // 목표온도보다 온도가 높으면 기존 Gain보다 훨씬 강하게 눌러줘야 함
+        // F_hat을 이겨내고 PWM을 0으로 만들기 위해 Gain을 증폭
+        K_gain = MFSMC_GAIN * 4.0f;
         lambda = MFSMC_LAMBDA_COOL;
     } else {
-        // [온도 상승 중]
+        // [가열 필요 구간]
         lambda = MFSMC_LAMBDA_HEAT;
     }
 
