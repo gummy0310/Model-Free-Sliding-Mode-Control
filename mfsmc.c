@@ -1,5 +1,4 @@
-// Experiment 1
-// 과열시 K_GAIN 4배적용
+// VERSION 3
 #include "main.h"
 
 PID_Manager_typedef pid;
