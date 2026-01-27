@@ -1,4 +1,5 @@
-// Experiment 2 : error_sum 연산로직 수정
+// [Experiment 1]
+// 외란 발생 시 error_dot의 급격한 변화가 F_hat 계싼식을 통해 출력 폭주를 유발 -> LPF 도입 시도
 #include "main.h"
 
 PID_Manager_typedef pid;
@@ -11,7 +12,7 @@ PID_Manager_typedef pid;
 // 1. 가열 시 (Target > Current):
 #define MFSMC_LAMBDA_HEAT   1.5f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
-#define MFSMC_LAMBDA_COOL    0.1f
+#define MFSMC_LAMBDA_COOL    0.0f
 
 // ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
 // - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
@@ -42,11 +43,14 @@ void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, 
 // MFSMC 알고리즘 구현... 이름만 PID 형식 유지
 float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
+    static float last_filtered_dot[CTRL_CH] = {0};
     // 시간차 (dt)
     static uint32_t last_call_time[CTRL_CH] = {0};
     uint32_t current_time = HAL_GetTick();
     if (last_call_time[channel] == 0) {
         last_call_time[channel] = current_time;
+        // 초기화 시 필터값도 0으로 리셋
+        last_filtered_dot[channel] = 0.0f;
         return 0.0f;
     }
     float dt = (current_time - last_call_time[channel]) / 1000.0f; //ms 단위를 s로 변환
@@ -56,8 +60,13 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
-    // 오차 변화율 (Error Dot)
-    float error_dot = (error - pid_param->last_error) / dt;
+    // 오차 변화율 (Error Dot) + LPF
+    float raw_dot = (error - pid_param->last_error) / dt;
+    float filter_factor = 0.2f; // 부드러워짐
+    float filtered_dot = (raw_dot * filter_factor) + (last_filtered_dot[channel] * (1.0f - filter_factor));
+    last_filtered_dot[channel] = filtered_dot;
+    float error_dot = filtered_dot;
+
 
     // 상태에 따른 gain scheduling
     float lambda;
@@ -98,15 +107,6 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 출력 제한 및 저장
     if (output > pid_param->output_max) output = pid_param->output_max;
     if (output < 0.0f) output = 0.0f;
-
-    // [Anti-Windup for MFSMC]
-    // 목표온도를 초과했다면, PWM이 출력되었더라도 다음 루프 계산에서는 이전 출력 0이었다고 가정하게 만듦
-    // F_hat 값이 빠르게 줄어들어 PWM이 즉시 꺼지는 효과
-    if (current_temp > pid_param->setpoint) {
-        pid_param->error_sum = 0.0f //초기화
-    } else {
-        pid_param->error_sum = output;
-    }
 
     pid_param->error_sum = output;
 
