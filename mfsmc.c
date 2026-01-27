@@ -33,7 +33,6 @@ PID_Manager_typedef pid;
 // 더 이상 구간별 업데이트 함수는 필요 없음
 void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
-    // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
     pid_param->kp = MFSMC_LAMBDA_HEAT;
     pid_param->ki = MFSMC_ALPHA;
     pid_param->kd = MFSMC_GAIN;
@@ -62,16 +61,17 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 상태에 따른 gain scheduling
     float lambda;
     float alpha = MFSMC_ALPHA;
-    float K_gain = MFSMC_GAIN;
+    float K_gain;
     if (error < 0) {
-        // [냉각 필요 구간]
+        // [과열. 냉각 필요 구간]
         // 목표온도보다 온도가 높으면 기존 Gain보다 훨씬 강하게 눌러줘야 함
         // F_hat을 이겨내고 PWM을 0으로 만들기 위해 Gain을 증폭
-        K_gain = MFSMC_GAIN * 4.0f;
         lambda = MFSMC_LAMBDA_COOL;
+        K_gain = MFSMC_GAIN * 4.0f;
     } else {
         // [가열 필요 구간]
-        lambda = MFSMC_LAMBDA_HEAT;
+        lambda = MFSMC_LAMBDA_HEAT; // 1.5
+        K_gain = MFSMC_GAIN;
     }
 
     // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
