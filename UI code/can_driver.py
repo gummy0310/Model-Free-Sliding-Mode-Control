@@ -1,5 +1,15 @@
 # can_driver.py
+import os
+import time
+import can
+from PyQt5.QtCore import QThread, pyqtSignal
+import const 
 
+class CanWorker(QThread):
+    # (경과시간, 온도, 팬상태, PWM값)
+    data_received = pyqtSignal(float, float, int, int)
+    error_occurred = pyqtSignal(str)
+    
     # 기존 함수 정의를 아래와 같이 변경 (cooling_enable 인자 추가)
     def send_control_message(self, pwm, fan_on, pid_enable, cooling_enable, target_temp):
         """명령 전송 (조용히 전송만 함)"""
