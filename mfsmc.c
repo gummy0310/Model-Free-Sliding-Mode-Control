@@ -29,14 +29,13 @@ PID_Manager_typedef pid;
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
-
-// 더 이상 구간별 업데이트 함수는 필요 없음
-void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
-{
-    // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
-    pid_param->kp = MFSMC_LAMBDA_HEAT;
-    pid_param->ki = MFSMC_ALPHA;
-    pid_param->kd = MFSMC_GAIN;
+// Cooling-Mode 활성화 요청 함수
+void Enable_Cooling_Mode(uint8_t channel, float cooling_target, float current_temp) {
+    // 현재온도가 목표보다 높은 경우 쿨링 모드 진입
+    if (current_temp > cooling_target) {
+        pid.param[channel].cooling_target_temp = cooling_target;
+        pid,param[channel].cooling_mode_active = 1;
+    }
 }
 
 // MFSMC 알고리즘 구현... 이름만 PID 형식 유지
@@ -96,6 +95,16 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
 
     // MFSMC 제어 입력 계산
     float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
+
+    // Cooling-Mode
+    if (pid_param->cooling_mode_active == 1) {
+        // 목표 쿨링 온도에 도달했는지 확인
+        if (current_temp <= pid_param->cooling_target_temp) {
+            pid_param->cooling_mode_active == 0;
+        } else {
+            output = 0;
+        }
+    }
 
     // 데이터 갱신
     pid_param->last_error = error;

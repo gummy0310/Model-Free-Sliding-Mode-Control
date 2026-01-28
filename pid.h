@@ -21,7 +21,7 @@ typedef struct {
     float ki;
     float kd;
     float setpoint;
-    float error_sum;
+    float error_sum; // MFSMX에서는 u_old(직전 제어 입력)으로 사용
     float last_error;
     float output_min;
     float output_max;
@@ -34,6 +34,9 @@ typedef struct {
     uint32_t last_tracked_time;  // 온도 추적 마지막 시간 (ms)
     uint32_t low_rise_time;      // 낮은 온도 상승률 지속 시간 (ms)
     bool rise_rate_monitoring;   // 온도 상승률 모니터링 활성화 상태
+    // [cooling-mode 관련]
+    uint8_t cooling_mode_active; // 1: 활성화, 0: 비활성화
+    float cooling_mode_temp; // 쿨링 목표 온도
 } PID_Param_TypeDef;
 
 typedef struct {
@@ -86,4 +89,6 @@ bool Check_Temperature_Rise_Rate(uint8_t channel, float current_temp);
 
 void PID_Set_Target_Temp(uint8_t channel, float target_temp);
 
+// [cooling-mode 함수 프로토타입]
+void Enable_Cooling_Mode(uint8_t channel, float cooling_target, float current_temp);
 #endif /* __PID_H */
