@@ -262,7 +262,7 @@ class MainWindow(QMainWindow):
             
         elif self.radio_cooling.isChecked():   # [추가]
             self.current_target = self.spin_target.value()
-            self.current_pid_mode = True       # 쿨링도 자동 제어의 일종이므로 True (MCU 로직 의존)
+            self.current_pid_mode = False
             self.current_cooling_mode = True   # Cooling Flag ON
             self.current_fan = True            # Cooling은 팬을 켜는 것이 일반적
             self.current_pwm = 0               # PWM은 0부터 시작
@@ -385,3 +385,4 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
