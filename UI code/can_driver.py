@@ -21,8 +21,8 @@ class CanWorker(QThread):
         # 1. CAN 초기화
         try:
             # 필요시 sudo 권한 명령어 주석 해제
-            # os.system("sudo ip link set can0 down")
-            # os.system("sudo ip link set can0 up type can bitrate 1000000 dbitrate 1000000 fd on")
+            os.system("sudo ip link set can0 down")
+            os.system("sudo ip link set can0 up type can bitrate 1000000 dbitrate 1000000 fd on")
             self.bus = can.interface.Bus(channel="can0", interface="socketcan", fd=True)
         except Exception as e:
             self.error_occurred.emit(f"CAN Init Error: {e}")
@@ -53,8 +53,8 @@ class CanWorker(QThread):
             self.bus.shutdown()
         os.system("sudo ip link set can0 down")
 
-    def send_control_message(self, pwm, fan_on, pid_enable, target_temp, cooling_enable=False):
-        """명령 전송 (조용히 전송만 함) - cooling_enable 추가"""
+    def send_control_message(self, pwm, fan_on, pid_enable, target_temp):
+        """명령 전송 (조용히 전송만 함)"""
         if not self.bus:
             return
 
@@ -68,17 +68,16 @@ class CanWorker(QThread):
         payload[18] = raw_target & 0xFF
         payload[19] = (raw_target >> 8) & 0xFF
 
-        # [수정] 30번 바이트에 쿨링 모드 플래그 할당 (0 or 1)
-        payload[30] = 1 if cooling_enable else 0
-
         msg = can.Message(
             arbitration_id=const.TX_ID_CTRL,
             data=payload,
             is_extended_id=False,
-            is_fd=True
+            is_fd=True,
+            bitrate_switch=True
         )
         
         try:
             self.bus.send(msg)
+            # print 제거됨 -> 터미널 조용함
         except can.CanError:
             pass
