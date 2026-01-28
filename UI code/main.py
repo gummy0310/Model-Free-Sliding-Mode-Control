@@ -11,10 +11,10 @@ from can_driver import CanWorker
 import const 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+def __init__(self):
         super().__init__()
         self.setWindowTitle("Thermal Control System (Start/Apply Ver.)")
-        self.resize(950, 950) 
+        self.resize(1300, 950) 
         
         # 데이터 저장소
         self.time_data = []
@@ -31,6 +31,7 @@ class MainWindow(QMainWindow):
         self.current_pwm = 0
         self.current_fan = False
         self.current_pid_mode = False
+        self.current_cooling_mode = False  # [추가] 쿨링 모드 상태 변수
         self.current_target = 0.0
         
         # CSV 및 로그 이름 관련 변수
@@ -53,7 +54,6 @@ class MainWindow(QMainWindow):
         self.worker.error_occurred.connect(self.handle_error)
 
         self.initUI()
-        # 주의: __init__ 에서 통신이나 로깅을 바로 시작하지 않음 (Start 버튼 대기)
 
     def init_csv_logger(self):
         try:
@@ -132,17 +132,21 @@ class MainWindow(QMainWindow):
         # 모드 선택
         self.radio_manual = QRadioButton("Manual Mode")
         self.radio_pid = QRadioButton("PID Mode")
+        self.radio_cooling = QRadioButton("Cooling Mode") # [추가]
         self.radio_manual.setChecked(True)
         
         self.btn_group = QButtonGroup()
         self.btn_group.addButton(self.radio_manual)
         self.btn_group.addButton(self.radio_pid)
+        self.btn_group.addButton(self.radio_cooling) # [추가]
         
         self.radio_manual.toggled.connect(self.on_mode_changed)
         self.radio_pid.toggled.connect(self.on_mode_changed)
+        self.radio_cooling.toggled.connect(self.on_mode_changed) # [추가]
 
         layout_control.addWidget(self.radio_manual)
         layout_control.addWidget(self.radio_pid)
+        layout_control.addWidget(self.radio_cooling) # [추가]
 
         # 수동 제어 UI
         self.widget_manual = QWidget()
@@ -150,7 +154,6 @@ class MainWindow(QMainWindow):
         lay_man.addWidget(QLabel("PWM (%):"))
         self.spin_pwm = QSpinBox()
         self.spin_pwm.setRange(0, 100)
-        # Note: 값 변경 시 바로 업데이트하지 않음 (Apply 버튼 사용)
         lay_man.addWidget(self.spin_pwm)
         self.chk_fan = QCheckBox("FAN ON")
         lay_man.addWidget(self.chk_fan)
@@ -174,15 +177,15 @@ class MainWindow(QMainWindow):
         # 구분선
         layout_control.addStretch()
 
-        # [추가] Apply Settings 버튼
+        # Apply Settings 버튼
         self.btn_apply = QPushButton("Apply Settings")
         self.btn_apply.setMinimumHeight(40)
         self.btn_apply.setStyleSheet("font-weight: bold; font-size: 14px;")
         self.btn_apply.clicked.connect(self.apply_settings)
-        self.btn_apply.setEnabled(False) # Start 전에는 비활성화
+        self.btn_apply.setEnabled(False)
         layout_control.addWidget(self.btn_apply)
 
-        # [추가] Start 버튼
+        # Start 버튼
         self.btn_start = QPushButton("START SYSTEM")
         self.btn_start.setMinimumHeight(50)
         self.btn_start.setStyleSheet("""
@@ -214,7 +217,7 @@ class MainWindow(QMainWindow):
             QPushButton:disabled { background-color: #e0e0e0; color: #a0a0a0; }
         """)
         self.btn_stop.clicked.connect(self.emergency_stop)
-        self.btn_stop.setEnabled(False) # Start 전에는 비활성화
+        self.btn_stop.setEnabled(False)
         layout_control.addWidget(self.btn_stop)
         
         grp_control.setLayout(layout_control)
@@ -241,18 +244,29 @@ class MainWindow(QMainWindow):
         
         print("System Started.")
 
-    # [추가] 설정 적용 함수 (Apply 버튼)
     def apply_settings(self):
         # UI에 입력된 값을 내부 변수에 저장
         if self.radio_manual.isChecked():
             self.current_pwm = self.spin_pwm.value()
             self.current_fan = self.chk_fan.isChecked()
             self.current_pid_mode = False
+            self.current_cooling_mode = False  # [추가]
             print(f"Applied: Manual Mode, PWM={self.current_pwm}, FAN={self.current_fan}")
-        else:
+            
+        elif self.radio_pid.isChecked():
             self.current_target = self.spin_target.value()
             self.current_pid_mode = True
+            self.current_cooling_mode = False  # [추가]
+            self.current_fan = False # PID모드에선 팬 자동 제어라면 0으로 두거나 로직에 맞게
             print(f"Applied: PID Mode, Target={self.current_target}")
+            
+        elif self.radio_cooling.isChecked():   # [추가]
+            self.current_target = self.spin_target.value()
+            self.current_pid_mode = True       # 쿨링도 자동 제어의 일종이므로 True (MCU 로직 의존)
+            self.current_cooling_mode = True   # Cooling Flag ON
+            self.current_fan = True            # Cooling은 팬을 켜는 것이 일반적
+            self.current_pwm = 0               # PWM은 0부터 시작
+            print(f"Applied: Cooling Mode, Target={self.current_target}")
 
     def stop_all(self):
         self.worker.running = False
@@ -271,6 +285,7 @@ class MainWindow(QMainWindow):
         self.current_pwm = 0
         self.current_fan = False
         self.current_pid_mode = False
+        self.current_cooling_mode = False  # [추가]
         self.current_target = 0.0
 
         self.send_heartbeat() # 마지막으로 0 전송
@@ -291,8 +306,8 @@ class MainWindow(QMainWindow):
 
         self.btn_stop.setText("STOPPED")
         self.btn_stop.setEnabled(False)
-        self.btn_apply.setEnabled(False) # 정지 후 적용 불가
-        self.btn_start.setEnabled(False) # 재시작 불가 (완전 종료 컨셉)
+        self.btn_apply.setEnabled(False)
+        self.btn_start.setEnabled(False)
         
         self.lbl_pwm.setText("PWM: 0% (STOP)")
         self.lbl_pwm.setStyleSheet("font-size: 20px; font-weight: bold; color: red;")
@@ -350,16 +365,18 @@ class MainWindow(QMainWindow):
         print(f"Error: {msg}")
 
     def on_mode_changed(self):
-        is_pid = self.radio_pid.isChecked()
-        self.widget_pid.setVisible(is_pid)
-        self.widget_manual.setVisible(not is_pid)
-        # 모드를 바꿔도 바로 적용하지 않음 (Apply 눌러야 함)
+        # PID 모드이거나 Cooling 모드이면 PID 설정창(목표온도)을 보여주고, Manual창은 숨김
+        is_manual = self.radio_manual.isChecked()
+        
+        self.widget_pid.setVisible(not is_manual)
+        self.widget_manual.setVisible(is_manual)
 
     def send_heartbeat(self):
         self.worker.send_control_message(
             pwm=self.current_pwm,
             fan_on=self.current_fan,
             pid_enable=self.current_pid_mode,
+            cooling_enable=self.current_cooling_mode,  # [추가]
             target_temp=self.current_target
         )
 
