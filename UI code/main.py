@@ -11,7 +11,7 @@ from can_driver import CanWorker
 import const 
 
 class MainWindow(QMainWindow):
-def __init__(self):
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("Thermal Control System (Start/Apply Ver.)")
         self.resize(1300, 950) 
