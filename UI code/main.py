@@ -13,7 +13,7 @@ import const
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Thermal Control System (Start/Apply Ver.)")
+        self.setWindowTitle("Thermal Control System (Cooling Mode Added)")
         self.resize(950, 950) 
         
         # 데이터 저장소
@@ -27,306 +27,191 @@ class MainWindow(QMainWindow):
         self.last_pwm = 0
         self.last_fan = False
 
-        # 제어 상태 변수 (Apply를 눌러야 갱신됨)
+        # 제어 상태 변수
         self.current_pwm = 0
         self.current_fan = False
         self.current_pid_mode = False
         self.current_target = 0.0
+        # [추가] 쿨링 모드 상태
+        self.current_cooling_mode = False
         
         # CSV 및 로그 이름 관련 변수
         self.csv_file = None
         self.csv_writer = None
         self.current_log_name = None 
 
-        # 타이머 설정 (아직 start하지 않음)
-        self.tx_timer = QTimer()
-        self.tx_timer.setInterval(100) # 10Hz (명령 전송)
-        self.tx_timer.timeout.connect(self.send_heartbeat)
+        self.init_ui()
 
-        self.plot_timer = QTimer()
-        self.plot_timer.setInterval(50)  # 20Hz (화면 갱신)
-        self.plot_timer.timeout.connect(self.update_ui)
+        # CAN 쓰레드 시작
+        self.can_worker = CanWorker()
+        self.can_worker.data_received.connect(self.update_data)
+        self.can_worker.error_occurred.connect(self.handle_error)
+        self.can_worker.start()
 
-        # 워커 생성 (아직 start하지 않음)
-        self.worker = CanWorker()
-        self.worker.data_received.connect(self.handle_new_data)
-        self.worker.error_occurred.connect(self.handle_error)
+        # 주기적 전송 타이머 (0.1초)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.send_command)
+        self.timer.start(100)
 
-        self.initUI()
-        # 주의: __init__ 에서 통신이나 로깅을 바로 시작하지 않음 (Start 버튼 대기)
-
-    def init_csv_logger(self):
-        try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.current_log_name = f"log_{timestamp}"
-            
-            filename = f"{self.current_log_name}.csv"
-            self.csv_file = open(filename, mode='w', newline='', encoding='utf-8')
-            self.csv_writer = csv.writer(self.csv_file)
-            self.csv_writer.writerow(["Time(sec)", "Temperature(C)", "PWM(%)"])
-            print(f"CSV Logging started: {filename}")
-        except Exception as e:
-            print(f"Failed to open CSV file: {e}")
-
-    def save_snapshot(self):
-        if self.current_log_name:
-            try:
-                pixmap = self.grab()
-                image_filename = f"{self.current_log_name}.png"
-                pixmap.save(image_filename, 'png')
-                print(f"Snapshot saved: {image_filename}")
-            except Exception as e:
-                print(f"Failed to save snapshot: {e}")
-
-    def initUI(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+    def init_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        
+        # Layout
         main_layout = QVBoxLayout()
-        central_widget.setLayout(main_layout)
+        central.setLayout(main_layout)
 
-        # 1. 그래프 영역
-        self.temp_plot_widget = pg.PlotWidget()
-        self.temp_plot_widget.setTitle("Temperature Monitor", color="w", size="12pt")
-        self.temp_plot_widget.setLabel("left", "Temperature (°C)")
-        self.temp_plot_widget.showGrid(x=True, y=True)
-        self.temp_plot_widget.addLegend()
-        self.temp_line = self.temp_plot_widget.plot(pen=pg.mkPen('y', width=2), name="Current Temp")
-        self.target_line = self.temp_plot_widget.plot(pen=pg.mkPen('r', width=2, style=Qt.DashLine), name="Target Temp")
+        # 1. 상태 표시부 (상단)
+        status_group = self.setup_status_ui()
+        main_layout.addWidget(status_group)
+
+        # 2. 그래프 영역 (중간)
+        graph_group = self.setup_graph_ui()
+        main_layout.addWidget(graph_group)
+
+        # 3. 제어 패널 (하단)
+        control_group = self.setup_control_ui()
+        main_layout.addWidget(control_group)
+
+    def setup_status_ui(self):
+        group = QGroupBox("Status Monitor")
+        layout = QHBoxLayout()
         
-        self.pwm_plot_widget = pg.PlotWidget()
-        self.pwm_plot_widget.setLabel("left", "PWM (%)")
-        self.pwm_plot_widget.setLabel("bottom", "Time (s)")
-        self.pwm_plot_widget.showGrid(x=True, y=True)
-        self.pwm_plot_widget.setYRange(0, 105) 
-        self.pwm_plot_widget.setXLink(self.temp_plot_widget)
-        self.pwm_line = self.pwm_plot_widget.plot(pen=pg.mkPen('c', width=2), name="PWM Output")
-
-        main_layout.addWidget(self.temp_plot_widget, stretch=2)
-        main_layout.addWidget(self.pwm_plot_widget, stretch=1)
-        
-        # 2. 하단 패널
-        control_panel = QHBoxLayout()
-        main_layout.addLayout(control_panel, stretch=1)
-
-        # [상태창]
-        grp_status = QGroupBox("Current Status")
-        layout_status = QGridLayout()
         self.lbl_temp = QLabel("0.0 °C")
         self.lbl_temp.setStyleSheet("font-size: 30px; font-weight: bold; color: #2196F3;")
+        self.lbl_temp.setAlignment(Qt.AlignCenter)
+
+        self.lbl_pwm = QLabel("PWM: 0%")
+        self.lbl_pwm.setStyleSheet("font-size: 20px; font-weight: bold;")
+        self.lbl_pwm.setAlignment(Qt.AlignCenter)
+
         self.lbl_fan = QLabel("FAN: OFF")
         self.lbl_fan.setStyleSheet("font-size: 20px; font-weight: bold; color: gray;")
-        self.lbl_pwm = QLabel("PWM: 0%")
-        self.lbl_pwm.setStyleSheet("font-size: 20px;")
+        self.lbl_fan.setAlignment(Qt.AlignCenter)
 
-        layout_status.addWidget(QLabel("Temperature:"), 0, 0)
-        layout_status.addWidget(self.lbl_temp, 0, 1)
-        layout_status.addWidget(self.lbl_fan, 1, 0, 1, 2)
-        layout_status.addWidget(self.lbl_pwm, 2, 0, 1, 2)
-        grp_status.setLayout(layout_status)
-        control_panel.addWidget(grp_status)
+        layout.addWidget(self.lbl_temp)
+        layout.addWidget(self.lbl_pwm)
+        layout.addWidget(self.lbl_fan)
+        group.setLayout(layout)
+        return group
 
-        # [제어 설정창]
-        grp_control = QGroupBox("Control Settings")
-        layout_control = QVBoxLayout()
+    def setup_graph_ui(self):
+        group = QGroupBox("Real-time Graph")
+        layout = QVBoxLayout()
+        
+        self.plot_widget = pg.PlotWidget()
+        self.plot_widget.setBackground('w')
+        self.plot_widget.showGrid(x=True, y=True)
+        self.plot_widget.setYRange(0, 100)
+        self.plot_widget.addLegend()
 
-        # 모드 선택
+        self.temp_line = self.plot_widget.plot(pen=pg.mkPen('r', width=2), name="Temp")
+        self.target_line = self.plot_widget.plot(pen=pg.mkPen('g', width=2, style=Qt.DashLine), name="Target")
+        self.pwm_line = self.plot_widget.plot(pen=pg.mkPen('b', width=1), name="PWM")
+
+        layout.addWidget(self.plot_widget)
+        group.setLayout(layout)
+        return group
+
+    def setup_control_ui(self):
+        group = QGroupBox("Control Panel")
+        layout = QVBoxLayout()
+        
+        # --- Mode Selection ---
+        mode_layout = QHBoxLayout()
+        self.bg_mode = QButtonGroup()
+        
         self.radio_manual = QRadioButton("Manual Mode")
         self.radio_pid = QRadioButton("PID Mode")
         self.radio_manual.setChecked(True)
         
-        self.btn_group = QButtonGroup()
-        self.btn_group.addButton(self.radio_manual)
-        self.btn_group.addButton(self.radio_pid)
+        self.bg_mode.addButton(self.radio_manual)
+        self.bg_mode.addButton(self.radio_pid)
+        
+        mode_layout.addWidget(self.radio_manual)
+        mode_layout.addWidget(self.radio_pid)
         
         self.radio_manual.toggled.connect(self.on_mode_changed)
         self.radio_pid.toggled.connect(self.on_mode_changed)
-
-        layout_control.addWidget(self.radio_manual)
-        layout_control.addWidget(self.radio_pid)
-
-        # 수동 제어 UI
-        self.widget_manual = QWidget()
-        lay_man = QHBoxLayout()
-        lay_man.addWidget(QLabel("PWM (%):"))
-        self.spin_pwm = QSpinBox()
-        self.spin_pwm.setRange(0, 100)
-        # Note: 값 변경 시 바로 업데이트하지 않음 (Apply 버튼 사용)
-        lay_man.addWidget(self.spin_pwm)
-        self.chk_fan = QCheckBox("FAN ON")
-        lay_man.addWidget(self.chk_fan)
-        self.widget_manual.setLayout(lay_man)
         
-        # PID 제어 UI
+        layout.addLayout(mode_layout)
+
+        # --- Setting Area ---
+        self.widget_manual = QWidget()
+        man_layout = QHBoxLayout()
+        man_layout.addWidget(QLabel("Manual PWM (%):"))
+        self.slider_pwm = QSpinBox()
+        self.slider_pwm.setRange(0, 100)
+        man_layout.addWidget(self.slider_pwm)
+        self.widget_manual.setLayout(man_layout)
+        
         self.widget_pid = QWidget()
-        lay_pid = QHBoxLayout()
-        lay_pid.addWidget(QLabel("Target Temp:"))
+        pid_layout = QHBoxLayout()
+        pid_layout.addWidget(QLabel("Target Temp (°C):"))
         self.spin_target = QDoubleSpinBox()
-        self.spin_target.setRange(0.0, 100.0)
-        self.spin_target.setValue(25.0)
-        self.spin_target.setSingleStep(0.5)
-        lay_pid.addWidget(self.spin_target)
-        self.widget_pid.setLayout(lay_pid)
+        self.spin_target.setRange(0, 200)
+        self.spin_target.setValue(30.0)
+        pid_layout.addWidget(self.spin_target)
+        self.widget_pid.setLayout(pid_layout)
         self.widget_pid.setVisible(False)
 
-        layout_control.addWidget(self.widget_manual)
-        layout_control.addWidget(self.widget_pid)
+        layout.addWidget(self.widget_manual)
+        layout.addWidget(self.widget_pid)
         
-        # 구분선
-        layout_control.addStretch()
+        # --- Fan & Cooling ---
+        option_layout = QHBoxLayout()
+        self.chk_fan = QCheckBox("FAN Enable")
+        option_layout.addWidget(self.chk_fan)
 
-        # [추가] Apply Settings 버튼
-        self.btn_apply = QPushButton("Apply Settings")
-        self.btn_apply.setMinimumHeight(40)
-        self.btn_apply.setStyleSheet("font-weight: bold; font-size: 14px;")
-        self.btn_apply.clicked.connect(self.apply_settings)
-        self.btn_apply.setEnabled(False) # Start 전에는 비활성화
-        layout_control.addWidget(self.btn_apply)
+        # [추가] Cooling Button
+        self.btn_cooling = QPushButton("COOLING MODE: OFF")
+        self.btn_cooling.setCheckable(True)
+        self.btn_cooling.setStyleSheet("background-color: lightgray; padding: 5px; font-weight: bold;")
+        self.btn_cooling.clicked.connect(self.toggle_cooling)
+        option_layout.addWidget(self.btn_cooling)
 
-        # [추가] Start 버튼
-        self.btn_start = QPushButton("START SYSTEM")
-        self.btn_start.setMinimumHeight(50)
-        self.btn_start.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50; 
-                color: white; 
-                font-size: 16px; 
-                font-weight: bold; 
-                border-radius: 5px;
-            }
-            QPushButton:hover { background-color: #45a049; }
-            QPushButton:disabled { background-color: #e0e0e0; color: #a0a0a0; }
-        """)
-        self.btn_start.clicked.connect(self.start_system)
-        layout_control.addWidget(self.btn_start)
+        layout.addLayout(option_layout)
 
-        # Stop 버튼
-        self.btn_stop = QPushButton("STOP (Emergency)")
-        self.btn_stop.setMinimumHeight(50)
-        self.btn_stop.setStyleSheet("""
-            QPushButton {
-                background-color: red; 
-                color: white; 
-                font-size: 16px; 
-                font-weight: bold; 
-                border-radius: 5px;
-            }
-            QPushButton:hover { background-color: #d32f2f; }
-            QPushButton:disabled { background-color: #e0e0e0; color: #a0a0a0; }
-        """)
-        self.btn_stop.clicked.connect(self.emergency_stop)
-        self.btn_stop.setEnabled(False) # Start 전에는 비활성화
-        layout_control.addWidget(self.btn_stop)
-        
-        grp_control.setLayout(layout_control)
-        control_panel.addWidget(grp_control)
+        # --- Apply Button (Log Start/Stop logic if needed) ---
+        self.btn_apply = QPushButton("APPLY / START LOG")
+        self.btn_apply.setFixedHeight(40)
+        self.btn_apply.clicked.connect(self.on_apply_clicked)
+        layout.addWidget(self.btn_apply)
 
-    # [추가] 시스템 시작 함수
-    def start_system(self):
-        # 1. UI 상태 변경
-        self.btn_start.setEnabled(False)
-        self.btn_stop.setEnabled(True)
-        self.btn_apply.setEnabled(True)
-        
-        # 2. 현재 입력된 값으로 초기 설정 적용
-        self.apply_settings()
+        group.setLayout(layout)
+        return group
 
-        # 3. CSV 로거 시작
-        self.init_csv_logger()
-
-        # 4. 워커 및 타이머 시작
-        if not self.worker.isRunning():
-            self.worker.start()
-        self.tx_timer.start()
-        self.plot_timer.start()
-        
-        print("System Started.")
-
-    # [추가] 설정 적용 함수 (Apply 버튼)
-    def apply_settings(self):
-        # UI에 입력된 값을 내부 변수에 저장
-        if self.radio_manual.isChecked():
-            self.current_pwm = self.spin_pwm.value()
-            self.current_fan = self.chk_fan.isChecked()
-            self.current_pid_mode = False
-            print(f"Applied: Manual Mode, PWM={self.current_pwm}, FAN={self.current_fan}")
+    def toggle_cooling(self):
+        if self.btn_cooling.isChecked():
+            self.current_cooling_mode = True
+            self.btn_cooling.setText("COOLING MODE: ON (Active)")
+            self.btn_cooling.setStyleSheet("background-color: #2196F3; color: white; padding: 5px; font-weight: bold;")
         else:
-            self.current_target = self.spin_target.value()
-            self.current_pid_mode = True
-            print(f"Applied: PID Mode, Target={self.current_target}")
-
-    def stop_all(self):
-        self.worker.running = False
-        self.worker.wait()
-        self.tx_timer.stop()
-        self.plot_timer.stop()
+            self.current_cooling_mode = False
+            self.btn_cooling.setText("COOLING MODE: OFF")
+            self.btn_cooling.setStyleSheet("background-color: lightgray; color: black; padding: 5px; font-weight: bold;")
         
-        if self.csv_file:
-            self.save_snapshot()
-            self.csv_file.close()
-            self.csv_file = None
+        # 즉시 전송
+        self.send_command()
 
-    def emergency_stop(self):
-        print("!!! EMERGENCY STOP !!!")
-        
-        self.current_pwm = 0
-        self.current_fan = False
-        self.current_pid_mode = False
-        self.current_target = 0.0
-
-        self.send_heartbeat() # 마지막으로 0 전송
-
-        self.tx_timer.stop()
-        self.plot_timer.stop()
-
-        try:
-            self.worker.data_received.disconnect(self.handle_new_data)
-        except:
-            pass
-
-        if self.csv_file:
-            self.save_snapshot()
-            self.csv_file.close()
-            self.csv_file = None
-            print("CSV File Closed.")
-
-        self.btn_stop.setText("STOPPED")
-        self.btn_stop.setEnabled(False)
-        self.btn_apply.setEnabled(False) # 정지 후 적용 불가
-        self.btn_start.setEnabled(False) # 재시작 불가 (완전 종료 컨셉)
-        
-        self.lbl_pwm.setText("PWM: 0% (STOP)")
-        self.lbl_pwm.setStyleSheet("font-size: 20px; font-weight: bold; color: red;")
-        
-        QMessageBox.warning(self, "System Stopped", "Current cut (PWM 0) and logging stopped.\nSnapshot Saved.")
-
-    def closeEvent(self, event):
-        self.stop_all()
-        event.accept()
-
-    def handle_new_data(self, elapsed, temp, fan, pwm):
-        self.time_data.append(elapsed)
-        self.temp_data.append(temp)
-        self.pwm_data.append(pwm)
-        
-        if self.current_pid_mode:
-            self.target_data.append(self.current_target)
-        else:
-            self.target_data.append(float('nan'))
-
+    def update_data(self, elapsed, temp, fan, pwm):
         self.last_temp = temp
         self.last_pwm = pwm
-        self.last_fan = bool(fan)
+        self.last_fan = (fan == 1)
+        
+        self.time_data.append(elapsed)
+        self.temp_data.append(temp)
+        self.target_data.append(self.current_target if self.current_pid_mode else 0)
+        self.pwm_data.append(pwm)
 
-        if self.csv_writer:
-            try:
-                self.csv_writer.writerow([f"{elapsed:.3f}", f"{temp:.2f}", pwm])
-            except Exception:
-                pass
+        # 데이터 길이 제한 (성능 최적화)
+        if len(self.time_data) > 1000:
+            self.time_data.pop(0)
+            self.temp_data.pop(0)
+            self.target_data.pop(0)
+            self.pwm_data.pop(0)
 
-    def update_ui(self):
-        if not self.time_data:
-            return
-
+        # 그래프 업데이트
         self.temp_line.setData(self.time_data, self.temp_data)
         self.target_line.setData(self.time_data, self.target_data)
         self.pwm_line.setData(self.time_data, self.pwm_data)
@@ -346,6 +231,10 @@ class MainWindow(QMainWindow):
             self.lbl_fan.setText("FAN: OFF")
             self.lbl_fan.setStyleSheet("font-size: 20px; font-weight: bold; color: gray;")
 
+        # CSV Logging
+        if self.csv_writer:
+            self.csv_writer.writerow([elapsed, temp, self.current_target, pwm, 1 if self.last_fan else 0])
+
     def handle_error(self, msg):
         print(f"Error: {msg}")
 
@@ -353,15 +242,62 @@ class MainWindow(QMainWindow):
         is_pid = self.radio_pid.isChecked()
         self.widget_pid.setVisible(is_pid)
         self.widget_manual.setVisible(not is_pid)
-        # 모드를 바꿔도 바로 적용하지 않음 (Apply 눌러야 함)
 
-    def send_heartbeat(self):
-        self.worker.send_control_message(
+    def on_apply_clicked(self):
+        # UI 값을 멤버 변수에 저장 (타이머에서 이 값을 사용하여 전송)
+        self.current_pid_mode = self.radio_pid.isChecked()
+        self.current_target = self.spin_target.value()
+        self.current_pwm = self.slider_pwm.value()
+        self.current_fan = self.chk_fan.isChecked()
+        
+        # CSV 시작 로직 (파일명 생성 등) - 간소화
+        if not self.csv_file:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.current_log_name = f"log_{timestamp}.csv"
+            try:
+                self.csv_file = open(self.current_log_name, 'w', newline='')
+                self.csv_writer = csv.writer(self.csv_file)
+                self.csv_writer.writerow(["Time", "Temp", "Target", "PWM", "Fan"])
+                print(f"Logging started: {self.current_log_name}")
+                self.btn_apply.setText("STOP LOG")
+            except Exception as e:
+                print(f"File Error: {e}")
+        else:
+            # Stop Logging
+            self.csv_file.close()
+            self.csv_file = None
+            self.csv_writer = None
+            self.btn_apply.setText("APPLY / START LOG")
+            print("Logging stopped")
+
+        # 즉시 전송
+        self.send_command()
+
+    def send_command(self):
+        if not self.can_worker.running:
+            return
+
+        # PID 모드면 타겟 온도 사용, 아니면 Manual PWM 사용
+        # (하지만 send_control_message는 모든 인자를 받으므로 그대로 전달)
+        
+        # 만약 Manual 모드라면 타겟 온도는 의미 없지만, 
+        # 프로토콜 유지를 위해 UI 값을 보냄.
+        # MCU측에서 Enable PID 플래그를 보고 판단함.
+        
+        self.can_worker.send_control_message(
             pwm=self.current_pwm,
             fan_on=self.current_fan,
             pid_enable=self.current_pid_mode,
-            target_temp=self.current_target
+            target_temp=self.current_target,
+            cooling_enable=self.current_cooling_mode # [추가된 인자]
         )
+
+    def closeEvent(self, event):
+        if self.csv_file:
+            self.csv_file.close()
+        self.can_worker.running = False
+        self.can_worker.wait()
+        event.accept()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

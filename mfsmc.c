@@ -97,12 +97,11 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
 
     // Cooling-Mode
-    if (pid_param->cooling_mode_active == 1) {
-        // 목표 쿨링 온도에 도달했는지 확인
-        if (current_temp <= pid_param->cooling_target_temp) {
-            pid_param->cooling_mode_active == 0;
+    if (pid_param->cooling_mode_active) {
+        if (current_temp > pid_param->cooling_target_temp) {
+            output = 0.0f;
         } else {
-            output = 0;
+            // 쿨링온도 이하로 떨어짐
         }
     }
 
@@ -283,6 +282,9 @@ void Init_PID_Controllers(void)
         pid.params[i].last_tracked_time = 0;
         pid.params[i].low_rise_time = 0;
         pid.enable_pid[i] = 0;
+        // [서진 추가] 쿨링모드
+        pid.params[i].cooling_mode_active = 0;
+        pid.parmas[i].cooling_target_temp = COOLING_TARGET_TEMP;
     }
     pid.shared_data.new_temp_data = 0;
     pid.shared_data.temp_timestamp = 0;

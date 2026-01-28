@@ -13,6 +13,9 @@
 #define SAFETY_LIMIT_TEMP	 80.0f  // 1단계 안전 모드 복구를 위한 히스테리시스(°C)
 #define SAFETY_TARGET_TEMP	 70.0f  // 1단계 안전 모드 복구를 위한 히스테리시스(°C)
 
+// [서진 추가]COOLING-MODE 목표 온도 정의
+#define COOLING_TARGET_TEMP 40.0f
+
 #define TEMP_HIGH_THRESHOLD 8.0f
 #define TEMP_LOW_THRESHOLD 5.0f
 

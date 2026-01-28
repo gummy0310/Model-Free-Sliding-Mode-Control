@@ -186,6 +186,8 @@ typedef struct {
 	uint8_t fan[CTRL_CH];
 	uint8_t enable_pid[CTRL_CH];
 	uint16_t target_temp[CTRL_CH];
+	// 쿨링 모드 플래그 추가
+	uint8_t cooling_mode[CTRL_CH];
 }Ctrl_Param_typedef;
 
 typedef struct {
