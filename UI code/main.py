@@ -33,6 +33,9 @@ class MainWindow(QMainWindow):
         self.current_pid_mode = False
         self.current_target = 0.0
         
+        # [NEW] 쿨링 모드 상태 변수
+        self.current_cooling = False
+        
         # CSV 및 로그 이름 관련 변수
         self.csv_file = None
         self.csv_writer = None
@@ -182,6 +185,29 @@ class MainWindow(QMainWindow):
         self.btn_apply.setEnabled(False) # Start 전에는 비활성화
         layout_control.addWidget(self.btn_apply)
 
+        # [NEW] Cooling Mode 버튼 (Start 버튼 위에 작게 추가)
+        self.btn_cooling = QPushButton("Cooling-Mode")
+        self.btn_cooling.setCheckable(True)
+        self.btn_cooling.setMinimumHeight(30) # Start 버튼보다 작게
+        # 초기 디자인 (꺼진 상태)
+        self.btn_cooling.setStyleSheet("""
+            QPushButton {
+                background-color: #E0E0E0; 
+                color: black; 
+                font-weight: bold; 
+                border-radius: 5px;
+            }
+            QPushButton:checked {
+                background-color: #00BCD4; 
+                color: white; 
+                border: 2px solid #00838F;
+            }
+        """)
+        self.btn_cooling.toggled.connect(self.on_cooling_toggled)
+        layout_control.addSpacing(5) # 약간의 간격
+        layout_control.addWidget(self.btn_cooling)
+        layout_control.addSpacing(5)
+
         # [추가] Start 버튼
         self.btn_start = QPushButton("START SYSTEM")
         self.btn_start.setMinimumHeight(50)
@@ -219,6 +245,17 @@ class MainWindow(QMainWindow):
         
         grp_control.setLayout(layout_control)
         control_panel.addWidget(grp_control)
+
+    # [NEW] 쿨링 모드 버튼 핸들러
+    def on_cooling_toggled(self, checked):
+        self.current_cooling = checked
+        if checked:
+            self.btn_cooling.setText("Cooling-Mode: ON")
+        else:
+            self.btn_cooling.setText("Cooling-Mode")
+        # 즉시 반영을 위해 전송 (시스템이 켜져있다면)
+        if not self.btn_start.isEnabled(): # Start가 눌려있는 상태
+            self.send_heartbeat()
 
     # [추가] 시스템 시작 함수
     def start_system(self):
@@ -272,6 +309,7 @@ class MainWindow(QMainWindow):
         self.current_fan = False
         self.current_pid_mode = False
         self.current_target = 0.0
+        self.current_cooling = False # 쿨링도 해제
 
         self.send_heartbeat() # 마지막으로 0 전송
 
@@ -293,6 +331,7 @@ class MainWindow(QMainWindow):
         self.btn_stop.setEnabled(False)
         self.btn_apply.setEnabled(False) # 정지 후 적용 불가
         self.btn_start.setEnabled(False) # 재시작 불가 (완전 종료 컨셉)
+        self.btn_cooling.setEnabled(False) # 쿨링 버튼도 비활성화
         
         self.lbl_pwm.setText("PWM: 0% (STOP)")
         self.lbl_pwm.setStyleSheet("font-size: 20px; font-weight: bold; color: red;")
@@ -303,7 +342,8 @@ class MainWindow(QMainWindow):
         self.stop_all()
         event.accept()
 
-    def handle_new_data(self, elapsed, temp, fan, pwm):
+    # [UPDATE] 인자 추가 (is_cooling)
+    def handle_new_data(self, elapsed, temp, fan, pwm, is_cooling):
         self.time_data.append(elapsed)
         self.temp_data.append(temp)
         self.pwm_data.append(pwm)
@@ -316,6 +356,16 @@ class MainWindow(QMainWindow):
         self.last_temp = temp
         self.last_pwm = pwm
         self.last_fan = bool(fan)
+
+        # [NEW] 쿨링 모드 자동 해제 반영
+        # MCU가 쿨링 모드를 해제했는데(0), UI는 켜져있다면(True) -> UI 버튼 OFF
+        if self.btn_cooling.isChecked() and (is_cooling == 0):
+             # 시그널 블록을 통해 불필요한 재귀 호출 방지 (선택사항이나 안전하게)
+             self.btn_cooling.blockSignals(True)
+             self.btn_cooling.setChecked(False)
+             self.btn_cooling.setText("Cooling-Mode")
+             self.btn_cooling.blockSignals(False)
+             self.current_cooling = False # 상태 동기화
 
         if self.csv_writer:
             try:
@@ -356,11 +406,13 @@ class MainWindow(QMainWindow):
         # 모드를 바꿔도 바로 적용하지 않음 (Apply 눌러야 함)
 
     def send_heartbeat(self):
+        # [UPDATE] cooling_mode 인자 추가
         self.worker.send_control_message(
             pwm=self.current_pwm,
             fan_on=self.current_fan,
             pid_enable=self.current_pid_mode,
-            target_temp=self.current_target
+            target_temp=self.current_target,
+            cooling_mode=self.current_cooling
         )
 
 if __name__ == '__main__':
