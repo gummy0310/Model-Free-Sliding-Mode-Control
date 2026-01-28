@@ -39,7 +39,7 @@ typedef struct {
     bool rise_rate_monitoring;   // 온도 상승률 모니터링 활성화 상태
     // [cooling-mode 관련]
     uint8_t cooling_mode_active; // 1: 활성화, 0: 비활성화
-    float cooling_mode_temp; // 쿨링 목표 온도
+    float cooling_target_temp; // 쿨링 목표 온도
 } PID_Param_TypeDef;
 
 typedef struct {

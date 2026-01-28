@@ -33,8 +33,8 @@ PID_Manager_typedef pid;
 void Enable_Cooling_Mode(uint8_t channel, float cooling_target, float current_temp) {
     // 현재온도가 목표보다 높은 경우 쿨링 모드 진입
     if (current_temp > cooling_target) {
-        pid.param[channel].cooling_target_temp = cooling_target;
-        pid,param[channel].cooling_mode_active = 1;
+        pid.params[channel].cooling_target_temp = cooling_target;
+        pid.params[channel].cooling_mode_active = 1;
     }
 }
 
@@ -284,7 +284,7 @@ void Init_PID_Controllers(void)
         pid.enable_pid[i] = 0;
         // [서진 추가] 쿨링모드
         pid.params[i].cooling_mode_active = 0;
-        pid.parmas[i].cooling_target_temp = COOLING_TARGET_TEMP;
+        pid.params[i].cooling_target_temp = COOLING_TARGET_TEMP;
     }
     pid.shared_data.new_temp_data = 0;
     pid.shared_data.temp_timestamp = 0;
