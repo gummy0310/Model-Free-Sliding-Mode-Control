@@ -25,6 +25,9 @@ PID_Manager_typedef pid;
 // PHI: Boundary Layer Thickness
 #define MFSMC_PHI   15.0f
 
+// 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
+#define MFSMC_FORCED_COOLING_THRESHOLD  3.0f
+
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
@@ -55,6 +58,16 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
 
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
+
+    // 강제 냉각 로직: 현재온도가 목표보다 임계값 이상 높을 때
+    if (error < -MFSMC_FORCED_COOLING_THRESHOLD) {
+        // last_error는 현재 오차로 갱신
+        pid_param->last_error = error;
+        // u_old: 모델 추정기 F_hat에서 이전 출력은 0 이었음을 반영
+        pid_param->error_sum = 0.0f;
+        // 강제 0 출력
+        return 0.0f;
+    }
 
     // 오차 변화율 (Error Dot)
     float error_dot = (error - pid_param->last_error) / dt;
