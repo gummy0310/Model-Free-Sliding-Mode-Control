@@ -332,7 +332,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 					// 4. PID 제어 (Feedforward가 true 반환 시)
 					if (use_pid)
 					{
-						float pid_output = Calculate_PID(&pid.params[i], current_temp, i);
+						float pid_output = Calculate_Ctrl(&pid.params[i], current_temp, i);
 						Set_PWM_Output(i, (uint8_t)pid_output);
 					}
 

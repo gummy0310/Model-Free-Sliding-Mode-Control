@@ -33,7 +33,7 @@ PID_Manager_typedef pid;
 // =========================================================
 
 // MFSMC 알고리즘 구현... 이름만 PID 형식 유지
-float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
+float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
     // 시간차 (dt)
     static uint32_t last_call_time[CTRL_CH] = {0};

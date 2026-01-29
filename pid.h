@@ -71,7 +71,7 @@ typedef struct {
 
 extern PID_Manager_typedef pid;
 
-float Calculate_PID(PID_Param_TypeDef* pid, float current_temp, uint8_t channel);
+float Calculate_Ctrl(PID_Param_TypeDef* pid, float current_temp, uint8_t channel);
 void Update_Fan_Status(uint8_t channel);
 
 bool Check_Temperature_Sensor(uint8_t channel, float current_temp);
