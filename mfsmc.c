@@ -32,16 +32,6 @@ PID_Manager_typedef pid;
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
-
-// 더 이상 구간별 업데이트 함수는 필요 없음
-void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
-{
-    // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
-    pid_param->kp = MFSMC_LAMBDA_HEAT;
-    pid_param->ki = MFSMC_ALPHA;
-    pid_param->kd = MFSMC_GAIN;
-}
-
 // MFSMC 알고리즘 구현... 이름만 PID 형식 유지
 float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
