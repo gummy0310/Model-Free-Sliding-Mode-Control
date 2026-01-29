@@ -26,7 +26,7 @@ PID_Manager_typedef pid;
 #define MFSMC_PHI   15.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
-#define MFSMC_FORCED_COOLING_THRESHOLD  3.0f
+#define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
