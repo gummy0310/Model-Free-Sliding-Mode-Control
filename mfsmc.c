@@ -20,7 +20,7 @@ PID_Manager_typedef pid;
 #define MFSMC_ALPHA   2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  2.0f
+#define MFSMC_GAIN  7.0f
 
 // PHI: Boundary Layer Thickness
 #define MFSMC_PHI   15.0f
@@ -67,7 +67,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     float lambda;
     float K_gain;
     if (error < 0) {
-    	K_gain = MFSMC_GAIN * 4.0f;
+    	K_gain = MFSMC_GAIN * 3.0f;
     } else {
     	K_gain = MFSMC_GAIN;
     }
