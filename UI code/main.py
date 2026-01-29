@@ -14,7 +14,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Thermal Control System (Start/Apply Ver.)")
-        self.resize(950, 950) 
+        self.resize(1300, 950)
         
         # 데이터 저장소
         self.time_data = []
