@@ -175,6 +175,7 @@ class MainWindow(QMainWindow):
         # [추가됨] 데이터 저장창 (Data Recording)
         # ---------------------------------------------------------
         grp_save = QGroupBox("Data Recording")
+        grp_save.setMaximumWidth(600)
         layout_save = QVBoxLayout()
         
         layout_save.addWidget(QLabel("File Name:"))
