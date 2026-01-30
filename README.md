@@ -31,23 +31,6 @@
 | `mfsmc.h` | MFSMC 제어 파라미터 구조체 정의 (`MFSMC_Params`, `MFSMC_Data`) |
 | `main.h` | 전역 매크로, 하드웨어 핀 정의, 시스템 상태 구조체 선언 |
 
-## ⚙️ Control Algorithm: MFSMC
-
-본 시스템은 SMA의 온도 제어를 위해 **Model-Free Sliding Mode Control**을 사용합니다.
-
-### Control Law
-제어 입력 $u(t)$는 슬라이딩 평면 $s(t)$를 기반으로 계산됩니다:
-
-$$u(t) = u(t-1) + \frac{1}{\alpha} ( \dot{e} + \beta e + \eta \cdot \text{sgn}(s) )$$
-
-* **Error ($e$)**: `Setpoint - Current_Temp`
-* **Sliding Surface ($s$)**: $\dot{e} + \lambda e$
-* **Parameters**:
-    * `alpha`: 입력 게인 관련 파라미터
-    * `beta`, `phi`: 슬라이딩 모드 도달 법칙 관련 파라미터
-
-코드 내 `MFSMC_Compute()` 함수에서 위 수식을 처리하여 PWM Duty Cycle을 갱신합니다.
-
 ## 📡 Communication Protocol (CAN FD)
 
 * **Baudrate**: (설정에 따라 기입, 예: 1Mbps / 5Mbps)
