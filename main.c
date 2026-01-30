@@ -149,21 +149,21 @@ void Manual_Control (uint8_t ch)
 	system.state_pwm[ch] = system.ctrl_param_now.pwm[ch];
 	printf("CH %u PWM updated %u -> %u\r\n", ch, system.ctrl_param_save.pwm[ch], system.ctrl_param_now.pwm[ch]);
 	
-	// 팬 상태 업데이트
-	if (system.ctrl_param_save.fan[ch] != system.ctrl_param_now.fan[ch])
-	{
-		if (system.ctrl_param_now.fan[ch] == 1)
-		{
-			FSW_on(ch);
-			system.state_fsw[ch] = FAN_ON;
-		}
-		else
-		{
-			FSW_off(ch);
-			system.state_fsw[ch] = FAN_OFF;
-		}
-		printf("CH %u FAN updated %u -> %u\r\n", ch, system.ctrl_param_save.fan[ch], system.ctrl_param_now.fan[ch]);
-	}
+	// [팬 상태 업데이트] 현재 입력받은 값을 즉시 하드웨어 반영하도록 함
+  if (system.ctrl_param_now.fan[ch] == 1)
+  {
+    FSW_on(ch);
+    system.state_fsw[ch] = FAN_ON;
+  }
+  else
+  {
+    FSW_off(ch);
+    system.state_fsw[ch] = FAN_OFF;
+  }
+	// 상태확인용 출력 메시지
+  printf("CH %u Manual Update: PWM=%u, FAN=%s\r\n", ch, system.state_pwm[ch], (system.state_fsw[ch] == FAN_ON) ? "ON" : "OFF");
+  // 제어 파라미터 동기화
+  system.ctrl_param_save.fan[ch] = system.ctrl_param_now.fan[ch];
 }
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
