@@ -149,21 +149,21 @@ void Manual_Control (uint8_t ch)
 	system.state_pwm[ch] = system.ctrl_param_now.pwm[ch];
 	printf("CH %u PWM updated %u -> %u\r\n", ch, system.ctrl_param_save.pwm[ch], system.ctrl_param_now.pwm[ch]);
 	
-	// 팬 상태 업데이트
-	if (system.ctrl_param_save.fan[ch] != system.ctrl_param_now.fan[ch])
-	{
-		if (system.ctrl_param_now.fan[ch] == 1)
-		{
-			FSW_on(ch);
-			system.state_fsw[ch] = FAN_ON;
-		}
-		else
-		{
-			FSW_off(ch);
-			system.state_fsw[ch] = FAN_OFF;
-		}
-		printf("CH %u FAN updated %u -> %u\r\n", ch, system.ctrl_param_save.fan[ch], system.ctrl_param_now.fan[ch]);
-	}
+	// [팬 상태 업데이트] 현재 입력받은 값을 즉시 하드웨어 반영하도록 함
+  if (system.ctrl_param_now.fan[ch] == 1)
+  {
+    FSW_on(ch);
+    system.state_fsw[ch] = FAN_ON;
+  }
+  else
+  {
+    FSW_off(ch);
+    system.state_fsw[ch] = FAN_OFF;
+  }
+	// 상태확인용 출력 메시지
+  printf("CH %u Manual Update: PWM=%u, FAN=%s\r\n", ch, system.state_pwm[ch], (system.state_fsw[ch] == FAN_ON) ? "ON" : "OFF");
+  // 제어 파라미터 동기화
+  system.ctrl_param_save.fan[ch] = system.ctrl_param_now.fan[ch];
 }
 
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
@@ -310,43 +310,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		    }
 		}
 
-        for (uint8_t i = 0; i < CTRL_CH; i++)
+    for (uint8_t i = 0; i < CTRL_CH; i++)
 		{
-            // 1. 안전 온도 확인 (최우선 처리)
-            bool in_safety_mode = Check_Safety_Temperature(i, pid.shared_data.temp_data[i]);
+      // 1. 안전 온도 확인 (최우선 처리)
+      bool in_safety_mode = Check_Safety_Temperature(i, pid.shared_data.temp_data[i]);
 
-            // 2. PID 활성화 상태 및 안전 모드 확인
-            if (pid.enable_pid[i] && !in_safety_mode) {
-                float current_temp = pid.shared_data.temp_data[i];
-                float target_temp = pid.params[i].setpoint;
+      // 2. PID 활성화 상태 및 안전 모드 확인
+      if (pid.enable_pid[i] && !in_safety_mode) 
+      {
+        float current_temp = pid.shared_data.temp_data[i];
+        float target_temp = pid.params[i].setpoint;
 
-                //bool sensor_ok = Check_Temperature_Rise_Rate(i, current_temp);
-                bool sensor_ok = true; // 온도 상승 안전모드 일단 주석처리
+        //센서 이상 확인
+        //bool sensor_ok = Check_Temperature_Rise_Rate(i, current_temp);
+        bool sensor_ok = true; // 온도 상승 안전모드 일단 주석처리
 
-                if (sensor_ok) {
-                	// 3. Feedforward 로직 적용
-
-					bool use_pid = Apply_Feedforward_Control(i, current_temp, target_temp);
+        if (sensor_ok)
+        {
+          // 3. Feedforward 로직 적용
+          bool use_pid = Apply_Feedforward_Control(i, current_temp, target_temp);
 					//bool use_pid = true;
 
 					// 4. PID 제어 (Feedforward가 true 반환 시)
 					if (use_pid)
 					{
-						float pid_output = Calculate_PID(&pid.params[i], current_temp, i);
+						float pid_output = Calculate_Ctrl(&pid.params[i], current_temp, i);
 						Set_PWM_Output(i, (uint8_t)pid_output);
 					}
 
 					// 5. 온도 기반 팬 제어
 					Control_Fan_By_Temperature(i, current_temp, target_temp);
-                }
-            }
-            else if (!pid.enable_pid[i] && !in_safety_mode)
-			{
-                // PWM 직접 제어 모드 (안전 모드 아닐 때만)
-                // 온도 기반 팬 제어만 수행
-                Control_Fan_By_Temperature(i, pid.shared_data.temp_data[i], pid.params[i].setpoint);
-            }
         }
+      }
+    }
 	}
 }
 

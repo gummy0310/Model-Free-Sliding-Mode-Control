@@ -20,27 +20,20 @@ PID_Manager_typedef pid;
 #define MFSMC_ALPHA   2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  2.0f
+#define MFSMC_GAIN  7.0f
 
 // PHI: Boundary Layer Thickness
 #define MFSMC_PHI   15.0f
+
+// 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
+#define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
 
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
-
-// 더 이상 구간별 업데이트 함수는 필요 없음
-void Update_PID_Gains_By_Temp(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
-{
-    // MFSMC는 전 구간 자동 적응하므로 고정값 사용. lambda는 기본값을 heat으로 설정
-    pid_param->kp = MFSMC_LAMBDA_HEAT;
-    pid_param->ki = MFSMC_ALPHA;
-    pid_param->kd = MFSMC_GAIN;
-}
-
 // MFSMC 알고리즘 구현... 이름만 PID 형식 유지
-float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
+float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
     // 시간차 (dt)
     static uint32_t last_call_time[CTRL_CH] = {0};
@@ -56,6 +49,16 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
 
+    // 강제 냉각 로직: 현재온도가 목표보다 임계값 이상 높을 때
+    if (error < -MFSMC_FORCED_COOLING_THRESHOLD) {
+        // last_error는 현재 오차로 갱신
+        pid_param->last_error = error;
+        // u_old: 모델 추정기 F_hat에서 이전 출력은 0 이었음을 반영
+        pid_param->error_sum = 0.0f;
+        // 강제 0 출력
+        return 0.0f;
+    }
+
     // 오차 변화율 (Error Dot)
     float error_dot = (error - pid_param->last_error) / dt;
 
@@ -64,7 +67,7 @@ float Calculate_PID(PID_Param_TypeDef* pid_param, float current_temp, uint8_t ch
     float lambda;
     float K_gain;
     if (error < 0) {
-    	K_gain = MFSMC_GAIN * 4.0f;
+    	K_gain = MFSMC_GAIN * 3.0f;
     } else {
     	K_gain = MFSMC_GAIN;
     }
