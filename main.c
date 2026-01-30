@@ -342,12 +342,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 					Control_Fan_By_Temperature(i, current_temp, target_temp);
         }
       }
-      else if (!pid.enable_pid[i] && !in_safety_mode)
-			{
-        // PWM 직접 제어 모드 (안전 모드 아닐 때만)
-        // 온도 기반 팬 제어만 수행
-        Control_Fan_By_Temperature(i, pid.shared_data.temp_data[i], pid.params[i].setpoint);
-      }
     }
 	}
 }
