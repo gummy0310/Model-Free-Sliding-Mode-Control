@@ -310,23 +310,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		    }
 		}
 
-        for (uint8_t i = 0; i < CTRL_CH; i++)
+    for (uint8_t i = 0; i < CTRL_CH; i++)
 		{
-            // 1. 안전 온도 확인 (최우선 처리)
-            bool in_safety_mode = Check_Safety_Temperature(i, pid.shared_data.temp_data[i]);
+      // 1. 안전 온도 확인 (최우선 처리)
+      bool in_safety_mode = Check_Safety_Temperature(i, pid.shared_data.temp_data[i]);
 
-            // 2. PID 활성화 상태 및 안전 모드 확인
-            if (pid.enable_pid[i] && !in_safety_mode) {
-                float current_temp = pid.shared_data.temp_data[i];
-                float target_temp = pid.params[i].setpoint;
+      // 2. PID 활성화 상태 및 안전 모드 확인
+      if (pid.enable_pid[i] && !in_safety_mode) 
+      {
+        float current_temp = pid.shared_data.temp_data[i];
+        float target_temp = pid.params[i].setpoint;
 
-                //bool sensor_ok = Check_Temperature_Rise_Rate(i, current_temp);
-                bool sensor_ok = true; // 온도 상승 안전모드 일단 주석처리
+        //센서 이상 확인
+        //bool sensor_ok = Check_Temperature_Rise_Rate(i, current_temp);
+        bool sensor_ok = true; // 온도 상승 안전모드 일단 주석처리
 
-                if (sensor_ok) {
-                	// 3. Feedforward 로직 적용
-
-					bool use_pid = Apply_Feedforward_Control(i, current_temp, target_temp);
+        if (sensor_ok)
+        {
+          // 3. Feedforward 로직 적용
+          bool use_pid = Apply_Feedforward_Control(i, current_temp, target_temp);
 					//bool use_pid = true;
 
 					// 4. PID 제어 (Feedforward가 true 반환 시)
@@ -338,15 +340,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 					// 5. 온도 기반 팬 제어
 					Control_Fan_By_Temperature(i, current_temp, target_temp);
-                }
-            }
-            else if (!pid.enable_pid[i] && !in_safety_mode)
-			{
-                // PWM 직접 제어 모드 (안전 모드 아닐 때만)
-                // 온도 기반 팬 제어만 수행
-                Control_Fan_By_Temperature(i, pid.shared_data.temp_data[i], pid.params[i].setpoint);
-            }
         }
+      }
+      else if (!pid.enable_pid[i] && !in_safety_mode)
+			{
+        // PWM 직접 제어 모드 (안전 모드 아닐 때만)
+        // 온도 기반 팬 제어만 수행
+        Control_Fan_By_Temperature(i, pid.shared_data.temp_data[i], pid.params[i].setpoint);
+      }
+    }
 	}
 }
 
