@@ -1,21 +1,5 @@
-# STM32 MFSMC Temperature Controller
+기존 Auto 브랜치에서 작업한 코드를 실행시켜보았을 때, Manual 모드에서 수동으로 fan을 on/off 시키는게 작동하지 않았음
+fan 수동 on/off 기능 + Auto 모드에서 fan이 켜지고 꺼지면서 제어하도록 하는 것을 목표로 함
 
-STM32를 이용한 다채널 온도 제어 시스템 펌웨어입니다. 기존 PID 제어의 한계를 보완하기 위해 MFSMC(Model Free Sliding Mode Control) 알고리즘을 적용했습니다.
-
-## 🚀 주요 기능
-* **MFSMC 제어**: 모델 추정 기법을 사용하여 외란에 강하고 오버슈트를 최소화함.
-* **강제 냉각 로직**:
-  - 목표 온도가 현재 온도와 `Threshold` 이상 차이나는 경우, 출력을 즉시 0으로 차단.
-  - 제어 재개 시 적분항(`u_old`)을 초기화하여 모델 추정 오류 방지.
-* **Fan 제어**: 온도 및 안전 모드에 따른 자동 팬 제어.
-* **FDCAN 통신**: CAN 통신을 통한 파라미터 튜닝 및 상태 모니터링.
-
-## 🛠 개발 환경
-* **MCU**: STM32G4xx Series
-* **IDE**: STM32CubeIDE / VS Code
-* **Language**: C
-
-## 📂 파일 구조
-* `mfsmc.c`: MFSMC 제어 알고리즘 및 PID 계산 핵심 로직.
-* `mfsmc.h`: 제어 파라미터 구조체 및 임계값 정의.
-* `main.c`: HAL 초기화 및 메인 루프.
+pid 제어의 흔적이 코드상에 남아있는데 이름 정리하기
+더 이상 사용하지 않는 feedforward 로직 삭제
