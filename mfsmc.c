@@ -5,7 +5,7 @@ PID_Manager_typedef pid;
 // =========================================================
 // MFSMC 파라미터 설정
 // =========================================================
-// LAMBDA
+// LAMBDA: 가열관성을 잡기위한 요소
 // 가열용/냉각용으로 분리
 // 1. 가열 시 (Target > Current):
 #define MFSMC_LAMBDA_HEAT   1.5f
@@ -15,7 +15,7 @@ PID_Manager_typedef pid;
 // ALPHA: 시스템 모델 추정치 (입력 민감도)
 #define MFSMC_ALPHA   2.0f
 
-// GAIN (구 kd): 외란 제거 및 추종 강도
+// GAIN: 외란 제거 및 추종 강도
 #define MFSMC_GAIN  7.0f
 
 // PHI: Boundary Layer Thickness
@@ -60,18 +60,12 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
 
     // 상태에 따른 gain scheduling
     float alpha = MFSMC_ALPHA;
+    float K_gain = MFSMC_GAIN;
     float lambda;
-    float K_gain;
-    if (error < 0) {
-    	K_gain = MFSMC_GAIN * 3.0f;
-    } else {
-    	K_gain = MFSMC_GAIN;
-    }
-    if (error_dot > 0) {
-        // [온도 하강 중]
+
+    if (error_dot > 0) { // [온도 하강 중]
         lambda = MFSMC_LAMBDA_COOL;
-    } else {
-        // [온도 상승 중]
+    } else { // [온도 상승 중]
         lambda = MFSMC_LAMBDA_HEAT;
     }
 
