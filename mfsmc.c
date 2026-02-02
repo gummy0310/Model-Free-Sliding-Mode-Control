@@ -5,17 +5,14 @@ PID_Manager_typedef pid;
 // =========================================================
 // MFSMC 파라미터 설정
 // =========================================================
-// LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
+// LAMBDA
 // 가열용/냉각용으로 분리
 // 1. 가열 시 (Target > Current):
 #define MFSMC_LAMBDA_HEAT   1.5f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
 #define MFSMC_LAMBDA_COOL    0.0f
 
-// ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
-// - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
-// - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
-// - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
+// ALPHA: 시스템 모델 추정치 (입력 민감도)
 #define MFSMC_ALPHA   2.0f
 
 // GAIN (구 kd): 외란 제거 및 추종 강도
@@ -53,7 +50,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
         // last_error는 현재 오차로 갱신
         pid_param->last_error = error;
         // u_old: 모델 추정기 F_hat에서 이전 출력은 0 이었음을 반영
-        pid_param->error_sum = 0.0f;
+        pid_param->u_old = 0.0f;
         // 강제 0 출력
         return 0.0f;
     }
@@ -81,7 +78,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
     // 식: dot(e) = F - alpha * u
     // 이항하면: F = dot(e) + alpha * u
-    float u_old = pid_param->error_sum;
+    float u_old = pid_param->u_old;
     float F_hat = error_dot + (alpha * u_old);
 
     // 슬라이딩 표면 (s) 계산
@@ -106,7 +103,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     if (output > pid_param->output_max) output = pid_param->output_max;
     if (output < 0.0f) output = 0.0f;
 
-    pid_param->error_sum = output;
+    pid_param->u_old = output;
 
     return output;
 }
@@ -253,11 +250,11 @@ void Set_PWM_Output(uint8_t channel, uint8_t duty_cycle)
 void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
-        pid.params[i].kp = MFSMC_LAMBDA_HEAT;
-        pid.params[i].ki = MFSMC_ALPHA;
-        pid.params[i].kd = MFSMC_GAIN;
+        pid.params[i].lambda = MFSMC_LAMBDA_HEAT;
+        pid.params[i].alpha = MFSMC_ALPHA;
+        pid.params[i].gain = MFSMC_GAIN;
         pid.params[i].setpoint = 50.0f;
-        pid.params[i].error_sum = 0.0f;
+        pid.params[i].u_old = 0.0f;
         pid.params[i].last_error = 0.0f;
         pid.params[i].output_min = 0.0f;
         pid.params[i].output_max = MAX_PWM_LIMIT;
