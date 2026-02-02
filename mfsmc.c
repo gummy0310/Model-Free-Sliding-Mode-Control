@@ -12,13 +12,13 @@ PID_Manager_typedef pid;
 #define MFSMC_LAMBDA_COOL    0.0f
 
 // ALPHA: 시스템 모델 추정치 (입력 민감도)
-#define MFSMC_ALPHA   2.0f
+#define MFSMC_ALPHA   20.0f
 
 // GAIN: 외란 제거 및 추종 강도
-#define MFSMC_GAIN  7.0f
+#define MFSMC_GAIN  1.0f
 
 // PHI: Boundary Layer Thickness
-#define MFSMC_PHI   15.0f
+#define MFSMC_PHI   25.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
 #define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
