@@ -327,16 +327,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
         if (sensor_ok)
         {
-          // 3. Feedforward 로직 적용
-          bool use_pid = Apply_Feedforward_Control(i, current_temp, target_temp);
-					//bool use_pid = true;
-
-					// 4. PID 제어 (Feedforward가 true 반환 시)
-					if (use_pid)
-					{
-						float pid_output = Calculate_Ctrl(&pid.params[i], current_temp, i);
-						Set_PWM_Output(i, (uint8_t)pid_output);
-					}
+          // 제어 연산 수행
+          float ctrl_output = Calculate_Ctrl(&pid.params[i], current_temp, i)
+  				Set_PWM_Output(i, (uint8_t)ctrl_output);
 
 					// 5. 온도 기반 팬 제어
 					Control_Fan_By_Temperature(i, current_temp, target_temp);

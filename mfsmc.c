@@ -1,4 +1,3 @@
-// VERSION 3
 #include "main.h"
 
 PID_Manager_typedef pid;
@@ -246,17 +245,6 @@ void Set_PWM_Output(uint8_t channel, uint8_t duty_cycle)
     if (pid.params[channel].safety_mode) duty_cycle = 0;
     *system.pnt_pwm[channel] = duty_cycle;
     system.state_pwm[channel] = duty_cycle;
-}
-
-bool Apply_Feedforward_Control(uint8_t channel, float current_temp, float target_temp)
-{
-    static bool is_pid_active[CTRL_CH] = {false};
-    if (!is_pid_active[channel]) {
-        pid.params[channel].error_sum = 0.0f;
-        pid.params[channel].last_error = 0.0f;
-        is_pid_active[channel] = true;
-    }
-    return true;
 }
 
 void Init_PID_Controllers(void)

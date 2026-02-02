@@ -79,7 +79,6 @@ bool Check_Safety_Temperature(uint8_t channel, float current_temp);
 void Control_Fan_By_Temperature(uint8_t channel, float current_temp, float target_temp);
 
 void Set_PWM_Output(uint8_t channel, uint8_t duty_cycle);
-bool Apply_Feedforward_Control(uint8_t channel, float current_temp, float target_temp);
 
 void Init_PID_Controllers(void);
 bool Check_Temperature_Rise_Rate(uint8_t channel, float current_temp);
