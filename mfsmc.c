@@ -6,7 +6,6 @@ PID_Manager_typedef pid;
 // MFSMC 파라미터 설정
 // =========================================================
 // LAMBDA: 가열관성을 잡기위한 요소
-// 가열용/냉각용으로 분리
 // 1. 가열 시 (Target > Current):
 #define MFSMC_LAMBDA_HEAT   1.5f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
@@ -28,7 +27,7 @@ PID_Manager_typedef pid;
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
-// MFSMC 알고리즘 구현... 이름만 PID 형식 유지
+// MFSMC 알고리즘 구현
 float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
     // 시간차 (dt)
