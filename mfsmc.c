@@ -178,7 +178,7 @@ void Update_Fan_Status(uint8_t channel)
     if (pid.params[channel].safety_mode > 0) FSW_on(channel);
 }
 
-bool Check_Temperature_Sensor(uint8_t channel, float current_temp)
+bool Check_Temperature_Sensor(uint8_t channel, float current_temp) //센서오류 판단 함수
 {
     if (pid.startup_phase) return true;
     if (current_temp > 200.0f || current_temp < -10.0f) {
@@ -198,7 +198,7 @@ bool Check_Temperature_Sensor(uint8_t channel, float current_temp)
     return true;
 }
 
-bool Check_Safety_Temperature(uint8_t channel, float current_temp)
+bool Check_Safety_Temperature(uint8_t channel, float current_temp) //안전온도 판단 함수
 {
     if (current_temp >= SAFETY_LIMIT_TEMP) // 안전온도 초과
     {
