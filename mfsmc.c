@@ -203,7 +203,8 @@ bool Check_Temperature_Sensor(uint8_t channel, float current_temp)
 
 bool Check_Safety_Temperature(uint8_t channel, float current_temp)
 {
-    if (current_temp >= SAFETY_LIMIT_TEMP) {
+    if (current_temp >= SAFETY_LIMIT_TEMP) // 안전온도 초과
+    {
         if (pid.params[channel].safety_mode == 0) pid.params[channel].safety_mode = 1;
         FSW_on(channel);
         Update_Fan_Status(channel);
@@ -213,7 +214,9 @@ bool Check_Safety_Temperature(uint8_t channel, float current_temp)
             system.state_pwm[channel] = 0;
         }
         return true;
-    } else if (pid.params[channel].safety_mode == 1 && current_temp <= SAFETY_TARGET_TEMP) {
+    }
+    else if (pid.params[channel].safety_mode == 1 && current_temp <= SAFETY_TARGET_TEMP)
+    {
         pid.params[channel].safety_mode = 0;
         Update_Fan_Status(channel);
         return false;

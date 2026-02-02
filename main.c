@@ -274,22 +274,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		TMC_Scan (CTRL_CH);
 
-		// Dongsu.2025.04.10
 		for (uint8_t i = 0; i < CTRL_CH; i++)
 		{
 			pid.shared_data.temp_data[i] = tmc.temp_ext14[i];
 
-            // 센서 유효성 즉시 검사
-            Check_Temperature_Sensor(i, pid.shared_data.temp_data[i]);
+      // 센서 유효성 즉시 검사
+      Check_Temperature_Sensor(i, pid.shared_data.temp_data[i]);
 
 			system.buf_fdcan_tx.struc.fan[i] = system.state_fsw[i];
 			system.buf_fdcan_tx.struc.pwm[i] = *system.pnt_pwm[i];
 			system.buf_fdcan_tx.struc.temp[i] = tmc.temp_ext14_raw[i];
 		}
 
-        // 타임스탬프 및 플래그 설정
-        pid.shared_data.temp_timestamp = HAL_GetTick();
-        pid.shared_data.new_temp_data = 1;  // 새 데이터 플래그 설정
+    // 타임스탬프 및 플래그 설정
+    pid.shared_data.temp_timestamp = HAL_GetTick();
+    pid.shared_data.new_temp_data = 1;  // 새 데이터 플래그 설정
 
 		FDCAN_TxHeaderTypeDef tx_header;
 		FDCAN_Config_TX(&tx_header, CAN3_TXID_STATE, FDCAN_DLC_BYTES_24);
@@ -297,6 +296,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 			Error_Handler();
 		}
+    
 	}
 
 	else if(htim->Instance == htim5.Instance)
