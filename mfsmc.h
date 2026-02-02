@@ -13,8 +13,8 @@
 #define SAFETY_LIMIT_TEMP	 80.0f  // 1단계 안전 모드 복구를 위한 히스테리시스(°C)
 #define SAFETY_TARGET_TEMP	 70.0f  // 1단계 안전 모드 복구를 위한 히스테리시스(°C)
 // Fan ON/OFF 제어 임계값
-#define TEMP_HIGH_THRESHOLD 8.0f
-#define TEMP_LOW_THRESHOLD 5.0f
+#define TEMP_HIGH_THRESHOLD 10.0f
+#define TEMP_LOW_THRESHOLD 8.0f
 
 typedef struct {
     float lambda;
