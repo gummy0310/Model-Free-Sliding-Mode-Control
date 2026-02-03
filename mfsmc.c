@@ -7,18 +7,18 @@ PID_Manager_typedef pid;
 // =========================================================
 // LAMBDA: 가열관성을 잡기위한 요소
 // 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   2.0f
+#define MFSMC_LAMBDA_HEAT   3.0f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
 #define MFSMC_LAMBDA_COOL    0.0f
 
 // ALPHA: 시스템 모델 추정치 (입력 민감도)
-#define MFSMC_ALPHA   5.0f
+#define MFSMC_ALPHA   12.0f
 
 // GAIN: 외란 제거 및 추종 강도
 #define MFSMC_GAIN  10.0f
 
 // PHI: Boundary Layer Thickness
-#define MFSMC_PHI   25.0f
+#define MFSMC_PHI   30.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
 #define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
