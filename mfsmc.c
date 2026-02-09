@@ -101,10 +101,6 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     return output;
 }
 
-// -----------------------------------------------------------
-// 아래 함수들은 기존 로직 그대로 유지
-// -----------------------------------------------------------
-
 bool Check_Temperature_Rise_Rate(uint8_t channel, float current_temp) {
     const float MIN_RISE_RATE_PER_SEC = 1.0f;
     const uint32_t MAX_LOW_RISE_TIME = 1500;
