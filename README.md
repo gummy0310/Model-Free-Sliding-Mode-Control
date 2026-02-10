@@ -56,9 +56,5 @@
 * 예: `pid.enable_pid` → 실제로는 MFSMC 활성화 플래그로 사용됨.
 * 예: `Control_Fan_By_Temperature` 함수 등 레거시 로직 정리 필요.
 
-**Next Step**:
-- [ ] `pid` 관련 구조체 이름을 `ctrl` 또는 `mfsmc`로 전체 리팩토링 (`refactor/pid-to-mfsmc` 브랜치에서 진행 중).
-- [ ] 매뉴얼 모드 시 타이머 인터럽트 간섭 문제 해결.
-
 ---
-**Date**: 2024.05.21
+**Date**: 2026.02.10
