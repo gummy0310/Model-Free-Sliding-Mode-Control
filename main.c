@@ -200,7 +200,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 					if (pid.enable_pid[i])
 					{
 					    // PID 제어 활성화 시 초기화 작업
-						pid.params[i].error_sum = 0.0f;
+						pid.params[i].u_old = 0.0f;
 						pid.params[i].last_error = 0.0f;
 						pid.params[i].safety_mode = 0;
 
@@ -254,10 +254,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	    if (ch < CTRL_CH)
 	    {
 	    	/* PID 게인 값 설정 */
-	        pid.params[ch].kp = pid.buf_fdcan_pid_tuning.struc.kp;
-	        pid.params[ch].ki = pid.buf_fdcan_pid_tuning.struc.ki;
-	        pid.params[ch].kd = pid.buf_fdcan_pid_tuning.struc.kd;
-	        printf("PID Gains updated for CH %u: Kp=%.2f, Ki=%.4f, Kd=%.4f\r\n", ch, pid.params[ch].kp, pid.params[ch].ki, pid.params[ch].kd);
+	        pid.params[ch].lambda = pid.buf_fdcan_pid_tuning.struc.kp;
+	        pid.params[ch].alpha = pid.buf_fdcan_pid_tuning.struc.ki;
+	        pid.params[ch].gain = pid.buf_fdcan_pid_tuning.struc.kd;
+	        printf("PID Gains updated for CH %u: Kp=%.2f, Ki=%.4f, Kd=%.4f\r\n", ch, pid.params[ch].lambda, pid.params[ch].alpha, pid.params[ch].gain);
 
 	        LED2_toggle;  // PID 튜닝 메시지 수신 표시
 	        }
@@ -274,22 +274,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		TMC_Scan (CTRL_CH);
 
-		// Dongsu.2025.04.10
 		for (uint8_t i = 0; i < CTRL_CH; i++)
 		{
 			pid.shared_data.temp_data[i] = tmc.temp_ext14[i];
 
-            // 센서 유효성 즉시 검사
-            Check_Temperature_Sensor(i, pid.shared_data.temp_data[i]);
+      // 센서 유효성 즉시 검사
+      Check_Temperature_Sensor(i, pid.shared_data.temp_data[i]);
 
 			system.buf_fdcan_tx.struc.fan[i] = system.state_fsw[i];
 			system.buf_fdcan_tx.struc.pwm[i] = *system.pnt_pwm[i];
 			system.buf_fdcan_tx.struc.temp[i] = tmc.temp_ext14_raw[i];
 		}
 
-        // 타임스탬프 및 플래그 설정
-        pid.shared_data.temp_timestamp = HAL_GetTick();
-        pid.shared_data.new_temp_data = 1;  // 새 데이터 플래그 설정
+    // 타임스탬프 및 플래그 설정
+    pid.shared_data.temp_timestamp = HAL_GetTick();
+    pid.shared_data.new_temp_data = 1;  // 새 데이터 플래그 설정
 
 		FDCAN_TxHeaderTypeDef tx_header;
 		FDCAN_Config_TX(&tx_header, CAN3_TXID_STATE, FDCAN_DLC_BYTES_24);
@@ -297,6 +296,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 			Error_Handler();
 		}
+
 	}
 
 	else if(htim->Instance == htim5.Instance)
@@ -316,7 +316,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       bool in_safety_mode = Check_Safety_Temperature(i, pid.shared_data.temp_data[i]);
 
       // 2. PID 활성화 상태 및 안전 모드 확인
-      if (pid.enable_pid[i] && !in_safety_mode) 
+      if (pid.enable_pid[i] && !in_safety_mode)
       {
         float current_temp = pid.shared_data.temp_data[i];
         float target_temp = pid.params[i].setpoint;
@@ -327,16 +327,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
         if (sensor_ok)
         {
-          // 3. Feedforward 로직 적용
-          bool use_pid = Apply_Feedforward_Control(i, current_temp, target_temp);
-					//bool use_pid = true;
-
-					// 4. PID 제어 (Feedforward가 true 반환 시)
-					if (use_pid)
-					{
-						float pid_output = Calculate_Ctrl(&pid.params[i], current_temp, i);
-						Set_PWM_Output(i, (uint8_t)pid_output);
-					}
+          // 제어 연산 수행
+          float ctrl_output = Calculate_Ctrl(&pid.params[i], current_temp, i);
+  				Set_PWM_Output(i, (uint8_t)ctrl_output);
 
 					// 5. 온도 기반 팬 제어
 					Control_Fan_By_Temperature(i, current_temp, target_temp);

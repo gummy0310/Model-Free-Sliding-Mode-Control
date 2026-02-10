@@ -1,4 +1,3 @@
-// VERSION 3
 #include "main.h"
 
 PID_Manager_typedef pid;
@@ -6,24 +5,20 @@ PID_Manager_typedef pid;
 // =========================================================
 // MFSMC 파라미터 설정
 // =========================================================
-// LAMBDA (구 kp): 반응 속도 vs 오버슈트 억제
-// 가열용/냉각용으로 분리
+// LAMBDA: 가열관성을 잡기위한 요소
 // 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   1.5f
+#define MFSMC_LAMBDA_HEAT   3.0f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
 #define MFSMC_LAMBDA_COOL    0.0f
 
-// ALPHA (구 ki): 시스템 모델 추정치 (입력 민감도)
-// - 의미: PWM 1을 줬을 때 1초에 몇 도 오르는가?
-// - 값을 키우면: 제어기가 "히터 성능 좋네"라고 생각해서 출력을 살살 냄 (오버슈트 방지)
-// - 값을 줄이면: 제어기가 "히터 약하네"라고 생각해서 출력을 팍팍 냄
-#define MFSMC_ALPHA   2.0f
+// ALPHA: 시스템 모델 추정치 (입력 민감도)
+#define MFSMC_ALPHA   12.0f
 
-// GAIN (구 kd): 외란 제거 및 추종 강도
-#define MFSMC_GAIN  7.0f
+// GAIN: 외란 제거 및 추종 강도
+#define MFSMC_GAIN  10.0f
 
 // PHI: Boundary Layer Thickness
-#define MFSMC_PHI   15.0f
+#define MFSMC_PHI   30.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
 #define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
@@ -32,7 +27,7 @@ PID_Manager_typedef pid;
 #define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
-// MFSMC 알고리즘 구현... 이름만 PID 형식 유지
+// MFSMC 알고리즘 구현
 float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
     // 시간차 (dt)
@@ -54,7 +49,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
         // last_error는 현재 오차로 갱신
         pid_param->last_error = error;
         // u_old: 모델 추정기 F_hat에서 이전 출력은 0 이었음을 반영
-        pid_param->error_sum = 0.0f;
+        pid_param->u_old = 0.0f;
         // 강제 0 출력
         return 0.0f;
     }
@@ -64,25 +59,19 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
 
     // 상태에 따른 gain scheduling
     float alpha = MFSMC_ALPHA;
+    float K_gain = MFSMC_GAIN;
     float lambda;
-    float K_gain;
-    if (error < 0) {
-    	K_gain = MFSMC_GAIN * 3.0f;
-    } else {
-    	K_gain = MFSMC_GAIN;
-    }
-    if (error_dot > 0) {
-        // [온도 하강 중]
+
+    if (error_dot > 0) { // [온도 하강 중]
         lambda = MFSMC_LAMBDA_COOL;
-    } else {
-        // [온도 상승 중]
+    } else { // [온도 상승 중]
         lambda = MFSMC_LAMBDA_HEAT;
     }
 
     // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
     // 식: dot(e) = F - alpha * u
     // 이항하면: F = dot(e) + alpha * u
-    float u_old = pid_param->error_sum;
+    float u_old = pid_param->u_old;
     float F_hat = error_dot + (alpha * u_old);
 
     // 슬라이딩 표면 (s) 계산
@@ -107,14 +96,10 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     if (output > pid_param->output_max) output = pid_param->output_max;
     if (output < 0.0f) output = 0.0f;
 
-    pid_param->error_sum = output;
+    pid_param->u_old = output;
 
     return output;
 }
-
-// -----------------------------------------------------------
-// 아래 함수들은 기존 로직 그대로 유지
-// -----------------------------------------------------------
 
 bool Check_Temperature_Rise_Rate(uint8_t channel, float current_temp) {
     const float MIN_RISE_RATE_PER_SEC = 1.0f;
@@ -182,7 +167,7 @@ void Update_Fan_Status(uint8_t channel)
     if (pid.params[channel].safety_mode > 0) FSW_on(channel);
 }
 
-bool Check_Temperature_Sensor(uint8_t channel, float current_temp)
+bool Check_Temperature_Sensor(uint8_t channel, float current_temp) //센서오류 판단 함수
 {
     if (pid.startup_phase) return true;
     if (current_temp > 200.0f || current_temp < -10.0f) {
@@ -202,9 +187,10 @@ bool Check_Temperature_Sensor(uint8_t channel, float current_temp)
     return true;
 }
 
-bool Check_Safety_Temperature(uint8_t channel, float current_temp)
+bool Check_Safety_Temperature(uint8_t channel, float current_temp) //안전온도 판단 함수
 {
-    if (current_temp >= SAFETY_LIMIT_TEMP) {
+    if (current_temp >= SAFETY_LIMIT_TEMP) // 안전온도 초과
+    {
         if (pid.params[channel].safety_mode == 0) pid.params[channel].safety_mode = 1;
         FSW_on(channel);
         Update_Fan_Status(channel);
@@ -214,7 +200,9 @@ bool Check_Safety_Temperature(uint8_t channel, float current_temp)
             system.state_pwm[channel] = 0;
         }
         return true;
-    } else if (pid.params[channel].safety_mode == 1 && current_temp <= SAFETY_TARGET_TEMP) {
+    }
+    else if (pid.params[channel].safety_mode == 1 && current_temp <= SAFETY_TARGET_TEMP)
+    {
         pid.params[channel].safety_mode = 0;
         Update_Fan_Status(channel);
         return false;
@@ -248,25 +236,14 @@ void Set_PWM_Output(uint8_t channel, uint8_t duty_cycle)
     system.state_pwm[channel] = duty_cycle;
 }
 
-bool Apply_Feedforward_Control(uint8_t channel, float current_temp, float target_temp)
-{
-    static bool is_pid_active[CTRL_CH] = {false};
-    if (!is_pid_active[channel]) {
-        pid.params[channel].error_sum = 0.0f;
-        pid.params[channel].last_error = 0.0f;
-        is_pid_active[channel] = true;
-    }
-    return true;
-}
-
 void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
-        pid.params[i].kp = MFSMC_LAMBDA_HEAT;
-        pid.params[i].ki = MFSMC_ALPHA;
-        pid.params[i].kd = MFSMC_GAIN;
+        pid.params[i].lambda = MFSMC_LAMBDA_HEAT;
+        pid.params[i].alpha = MFSMC_ALPHA;
+        pid.params[i].gain = MFSMC_GAIN;
         pid.params[i].setpoint = 50.0f;
-        pid.params[i].error_sum = 0.0f;
+        pid.params[i].u_old = 0.0f;
         pid.params[i].last_error = 0.0f;
         pid.params[i].output_min = 0.0f;
         pid.params[i].output_max = MAX_PWM_LIMIT;
