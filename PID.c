@@ -6,7 +6,7 @@ PID_Manager_typedef pid;
 // PID 파라미터 설정
 // =========================================================
 #define KP  3.3f
-#define KI  0.0015f
+#define KI  0.002f
 #define KD  0.0f
 // 최대 PWM 출력 제한 (0.0 ~ 100.0)
 #define MAX_PWM_LIMIT  100.0f
