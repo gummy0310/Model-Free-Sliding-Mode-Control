@@ -8,6 +8,8 @@ PID_Manager_typedef pid;
 #define KP  3.3f
 #define KI  0.0015f
 #define KD  0.0f
+// 최대 PWM 출력 제한 (0.0 ~ 100.0)
+#define MAX_PWM_LIMIT  100.0f
 // =========================================================
 
 // PID
@@ -177,11 +179,11 @@ void Set_PWM_Output(uint8_t channel, uint8_t duty_cycle)
 void Init_PID_Controllers(void)
 {
     for (uint8_t i = 0; i < CTRL_CH; i++) {
-        pid.params[i].lambda = MFSMC_LAMBDA_HEAT;
-        pid.params[i].alpha = MFSMC_ALPHA;
-        pid.params[i].gain = MFSMC_GAIN;
+        pid.params[i].kp = KP;
+        pid.params[i].ki = KI;
+        pid.params[i].kd = KD;
         pid.params[i].setpoint = 50.0f;
-        pid.params[i].u_old = 0.0f;
+        pid.params[i].error_sum = 0.0f;
         pid.params[i].last_error = 0.0f;
         pid.params[i].output_min = 0.0f;
         pid.params[i].output_max = MAX_PWM_LIMIT;

@@ -200,7 +200,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 					if (pid.enable_pid[i])
 					{
 					    // PID 제어 활성화 시 초기화 작업
-						pid.params[i].u_old = 0.0f;
+						pid.params[i].error_sum = 0.0f;
 						pid.params[i].last_error = 0.0f;
 						pid.params[i].safety_mode = 0;
 
@@ -254,10 +254,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 	    if (ch < CTRL_CH)
 	    {
 	    	/* PID 게인 값 설정 */
-	        pid.params[ch].lambda = pid.buf_fdcan_pid_tuning.struc.kp;
-	        pid.params[ch].alpha = pid.buf_fdcan_pid_tuning.struc.ki;
-	        pid.params[ch].gain = pid.buf_fdcan_pid_tuning.struc.kd;
-	        printf("PID Gains updated for CH %u: Kp=%.2f, Ki=%.4f, Kd=%.4f\r\n", ch, pid.params[ch].lambda, pid.params[ch].alpha, pid.params[ch].gain);
+	        pid.params[ch].kp = pid.buf_fdcan_pid_tuning.struc.kp;
+	        pid.params[ch].ki = pid.buf_fdcan_pid_tuning.struc.ki;
+	        pid.params[ch].kd = pid.buf_fdcan_pid_tuning.struc.kd;
+	        printf("PID Gains updated for CH %u: Kp=%.2f, Ki=%.4f, Kd=%.4f\r\n", ch, pid.params[ch].kp, pid.params[ch].ki, pid.params[ch].kd);
 
 	        LED2_toggle;  // PID 튜닝 메시지 수신 표시
 	        }

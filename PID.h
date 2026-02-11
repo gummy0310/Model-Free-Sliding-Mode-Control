@@ -21,7 +21,7 @@ typedef struct {
     float ki;
     float kd;
     float setpoint;
-    float u_old;
+    float error_sum;
     float last_error;
     float output_min;
     float output_max;
