@@ -18,8 +18,13 @@ PID_Manager_typedef pid;
 // GAIN: 외란 제거 및 추종 강도
 #define MFSMC_GAIN  15.0f
 
-// PHI: Boundary Layer Thickness
-#define MFSMC_PHI   24.0f
+// CENTER: 가속이 본격적으로 시작되는 오차 지점 (변곡점)
+// 예: 15.0f면 오차 15도까지는 천천히 힘을 올리다가, 15도부터 급격히 가속
+#define SATURATION_CENTER    15.0f   
+
+// WIDTH: S자 곡선의 기울기 (작을수록 급격, 클수록 완만)
+// 예: 5.0~10.0 정도 추천
+#define SATURATION_WIDTH     8.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
 #define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
@@ -79,9 +84,18 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     float s = error + (lambda * error_dot);
 
     // [Saturation 로직]
-    // s/phi 값을 구해서 -1 ~ 1 사이로 제한
-    float phi = MFSMC_PHI;
-    float sat_val = tanhf(s / phi);
+    // shifted tanh 계산
+    float abs_s = fabsf(s);
+    float sigmoid_raw = (tanhf((abs_s - SATURATION_CENTER) / SATURATION_WIDTH) + 1.0f) / 2.0f;
+    // 0점 보정
+    float zero_bias = (tanhf((0.0f - SATURATION_CENTER) / SATURATION_WIDTH) + 1.0f) / 2.0f;
+    // 정규화 및 스케일링 (bias를 뺸만큼 최대값이 작아지므로 다시 채워줌)
+    float sat_val_norm = 0.0f;
+    if ((1.0f - zero_bias) > 0.0001f) {
+        sat_val_norm = (sigmoid_raw - zero_bias) / (1.0f - zero_bias);
+    }
+    //최종 sat_val (부호 복구)
+    float sat_val = (s >= 0) ? sat_val_norm : -sat_val_norm;
 
     // MFSMC 제어 입력 계산
     float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
