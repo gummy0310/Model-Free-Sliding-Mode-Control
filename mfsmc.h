@@ -17,9 +17,9 @@
 #define TEMP_LOW_THRESHOLD 5.0f
 
 typedef struct {
-    float lambda;
-    float alpha;
-    float gain;
+    float kp;
+    float ki;
+    float kd;
     float setpoint;
     float u_old;
     float last_error;

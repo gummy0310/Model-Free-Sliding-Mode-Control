@@ -3,100 +3,38 @@
 PID_Manager_typedef pid;
 
 // =========================================================
-// MFSMC 파라미터 설정
+// PID 파라미터 설정
 // =========================================================
-// LAMBDA: 가열관성을 잡기위한 요소
-// 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   3.0f
-// 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
-#define MFSMC_LAMBDA_COOL    0.0f
-
-// ALPHA: 시스템 모델 추정치 (입력 민감도)
-#define MFSMC_ALPHA   12.0f
-
-// GAIN: 외란 제거 및 추종 강도
-#define MFSMC_GAIN  10.0f
-
-// PHI: Boundary Layer Thickness
-#define MFSMC_PHI   30.0f
-
-// 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
-#define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
-
-// 최대 PWM 출력 제한 (0.0 ~ 100.0)
-#define MAX_PWM_LIMIT  100.0f
+#define KP  3.3f
+#define KI  0.0015f
+#define KD  0.0f
 // =========================================================
 
-// MFSMC 알고리즘 구현
+// PID
 float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t channel)
 {
-    // 시간차 (dt)
-    static uint32_t last_call_time[CTRL_CH] = {0};
-    uint32_t current_time = HAL_GetTick();
-    if (last_call_time[channel] == 0) {
-        last_call_time[channel] = current_time;
-        return 0.0f;
-    }
-    float dt = (current_time - last_call_time[channel]) / 1000.0f; //ms 단위를 s로 변환
-    last_call_time[channel] = current_time;
-    if (dt <= 0.0f || dt > 1.0f) dt = 0.1f;
+    pid_param->kp = KP;
+    pid_param->ki = KI;
+    pid_param->kd = KD;
 
-    // 오차 계산 (Target - Current)
     float error = pid_param->setpoint - current_temp;
+    pid_param->error_sum += error;
 
-    // 강제 냉각 로직: 현재온도가 목표보다 임계값 이상 높을 때
-    if (error < -MFSMC_FORCED_COOLING_THRESHOLD) {
-        // last_error는 현재 오차로 갱신
-        pid_param->last_error = error;
-        // u_old: 모델 추정기 F_hat에서 이전 출력은 0 이었음을 반영
-        pid_param->u_old = 0.0f;
-        // 강제 0 출력
-        return 0.0f;
-    }
+    // 적분항 누적 제한
+    float max_error_sum = (pid_param->ki != 0.0f) ? (pid_param->output_max / pid_param->ki) : pid_param->output_max;
+    if (pid_param->error_sum > max_error_sum) pid_param->error_sum = max_error_sum;
+    if (pid_param->error_sum < -max_error_sum) pid_param->error_sum = -max_error_sum;
 
-    // 오차 변화율 (Error Dot)
-    float error_dot = (error - pid_param->last_error) / dt;
-
-    // 상태에 따른 gain scheduling
-    float alpha = MFSMC_ALPHA;
-    float K_gain = MFSMC_GAIN;
-    float lambda;
-
-    if (error_dot > 0) { // [온도 하강 중]
-        lambda = MFSMC_LAMBDA_COOL;
-    } else { // [온도 상승 중]
-        lambda = MFSMC_LAMBDA_HEAT;
-    }
-
-    // Time Delay Estimation (F_hat 추정: 현재 상태 유지에 필요한 힘)
-    // 식: dot(e) = F - alpha * u
-    // 이항하면: F = dot(e) + alpha * u
-    float u_old = pid_param->u_old;
-    float F_hat = error_dot + (alpha * u_old);
-
-    // 슬라이딩 표면 (s) 계산
-    float s = error + (lambda * error_dot);
-
-    // [Saturation 로직]
-    // s/phi 값을 구해서 -1 ~ 1 사이로 제한
-    float phi = MFSMC_PHI;
-    float sat_val;
-    float ratio = s / phi;
-    if (ratio > 1.0f) sat_val = 1.0f;
-    else if (ratio < -1.0f) sat_val = -1.0f;
-    else sat_val = ratio;
-
-    // MFSMC 제어 입력 계산
-    float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
-
-    // 데이터 갱신
+    // 미분항 계산
+    float error_diff = error - pid_param->last_error;
     pid_param->last_error = error;
 
-    // 출력 제한 및 저장
-    if (output > pid_param->output_max) output = pid_param->output_max;
-    if (output < 0.0f) output = 0.0f;
+    // PID 출력 계산
+    float output = pid_param->kp * error + pid_param->ki * pid_param->error_sum + pid_param->kd * error_diff;
 
-    pid_param->u_old = output;
+    // 출력 제한
+    if (output > pid_param->output_max) output = pid_param->output_max;
+    if (output < pid_param->output_min) output = pid_param->output_min;
 
     return output;
 }
