@@ -81,7 +81,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     // [Saturation 로직]
     // s/phi 값을 구해서 -1 ~ 1 사이로 제한
     float phi = MFSMC_PHI;
-    float swtiching_term = tanhf(s / phi);
+    float sat_val = tanhf(s / phi);
 
     // MFSMC 제어 입력 계산
     float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
