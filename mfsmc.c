@@ -7,7 +7,7 @@ PID_Manager_typedef pid;
 // =========================================================
 // LAMBDA: 가열관성을 잡기위한 요소
 // 1. 가열 시 (Target > Current):
-#define MFSMC_LAMBDA_HEAT   3.0f
+#define MFSMC_LAMBDA_HEAT   1.0f
 // 2. 냉각 시 (Target < Current): 하강 관성에 의해 히터가 켜지는 것을 방지하기 위해 매우 작게 설정
 #define MFSMC_LAMBDA_COOL    0.0f
 
