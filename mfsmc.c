@@ -1,4 +1,5 @@
 #include "main.h"
+#include <math.h>
 
 PID_Manager_typedef pid;
 
@@ -15,10 +16,10 @@ PID_Manager_typedef pid;
 #define MFSMC_ALPHA   12.0f
 
 // GAIN: 외란 제거 및 추종 강도
-#define MFSMC_GAIN  10.0f
+#define MFSMC_GAIN  15.0f
 
 // PHI: Boundary Layer Thickness
-#define MFSMC_PHI   30.0f
+#define MFSMC_PHI   24.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
 #define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
@@ -80,11 +81,7 @@ float Calculate_Ctrl(PID_Param_TypeDef* pid_param, float current_temp, uint8_t c
     // [Saturation 로직]
     // s/phi 값을 구해서 -1 ~ 1 사이로 제한
     float phi = MFSMC_PHI;
-    float sat_val;
-    float ratio = s / phi;
-    if (ratio > 1.0f) sat_val = 1.0f;
-    else if (ratio < -1.0f) sat_val = -1.0f;
-    else sat_val = ratio;
+    float swtiching_term = tanhf(s / phi);
 
     // MFSMC 제어 입력 계산
     float output = (1.0f / alpha) * ( F_hat + (K_gain * sat_val) );
