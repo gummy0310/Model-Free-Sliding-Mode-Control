@@ -13,14 +13,14 @@ PID_Manager_typedef pid;
 #define MFSMC_LAMBDA_COOL    0.0f
 
 // ALPHA: 시스템 모델 추정치 (입력 민감도)
-#define MFSMC_ALPHA   15.0f
+#define MFSMC_ALPHA   12.0f
 
 // GAIN: 외란 제거 및 추종 강도
 #define MFSMC_GAIN  15.0f
 
 // CENTER: 가속이 본격적으로 시작되는 오차 지점 (변곡점)
 // 예: 15.0f면 오차 15도까지는 천천히 힘을 올리다가, 15도부터 급격히 가속
-#define SATURATION_CENTER    8.0f   
+#define SATURATION_CENTER    15.0f   
 
 // WIDTH: S자 곡선의 기울기 (작을수록 급격, 클수록 완만)
 // 예: 5.0~10.0 정도 추천
