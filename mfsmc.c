@@ -24,7 +24,7 @@ PID_Manager_typedef pid;
 
 // WIDTH: S자 곡선의 기울기 (작을수록 급격, 클수록 완만)
 // 예: 5.0~10.0 정도 추천
-#define SATURATION_WIDTH     8.0f
+#define SATURATION_WIDTH     10.0f
 
 // 강제 냉각 임계값: 현재온도가 목표온도보다 임계값 이상 높으면 출력 0고정
 #define MFSMC_FORCED_COOLING_THRESHOLD  1.0f
